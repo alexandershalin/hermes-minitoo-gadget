@@ -8,8 +8,8 @@ from urllib.parse import urlsplit
 
 _ALLOWED = {"server", "name", "token", "audio", "minitoo"}
 _MINITOO_ALLOWED = {
-    "address", "channel", "max_fps", "packet_delay_ms", "request_timeout_ms",
-    "reconnect_delay_ms", "zstd_level", "zstd_window_log",
+    "address", "channel", "update_interval_ms", "chunk_delay_ms",
+    "ready_timeout_ms", "reconnect_delay_ms", "max_payload_bytes",
 }
 
 
@@ -22,11 +22,26 @@ def load_config(path: Path) -> dict:
     url = urlsplit(raw["server"])
     if url.scheme not in {"ws", "wss"} or not url.hostname:
         raise ValueError("server must be a ws:// or wss:// URL")
+
     mini = raw.get("minitoo")
     if not isinstance(mini, dict) or set(mini) - _MINITOO_ALLOWED:
         raise ValueError("minitoo must be an object with known MiniToo options")
     if not isinstance(mini.get("address"), str) or ":" not in mini["address"]:
         raise ValueError("minitoo.address is required")
+
+    numeric_ranges = {
+        "channel": (1, 30, 1),
+        "update_interval_ms": (250, 60000, 2500),
+        "chunk_delay_ms": (0, 100, 5),
+        "ready_timeout_ms": (100, 30000, 8000),
+        "reconnect_delay_ms": (0, 60000, 2000),
+        "max_payload_bytes": (1024, 600000, 600000),
+    }
+    for key, (low, high, default) in numeric_ranges.items():
+        value = mini.get(key, default)
+        if type(value) is not int or not low <= value <= high:
+            raise ValueError(f"minitoo.{key} must be an integer from {low} to {high}")
+
     audio = raw.get("audio", {})
     if not isinstance(audio, dict) or set(audio) - {"input", "output", "rate"}:
         raise ValueError("audio accepts input, output and rate")
@@ -34,13 +49,10 @@ def load_config(path: Path) -> dict:
 
 
 def sdk_config(config: dict) -> dict:
-    """Create the config expected by Hermes Gadget's Linux Client."""
     out = {"server": config["server"], "name": config.get("name", "MiniToo Gadget")}
     if "token" in config:
         out["token"] = config["token"]
     if config.get("audio"):
         out["audio"] = dict(config["audio"])
-    # Hermes Gadget's Client only needs Display.width/height/touch/round after
-    # construction. Our MiniTooDisplay ignores SDL-specific fields entirely.
     out["display"] = dict(config["minitoo"])
     return out

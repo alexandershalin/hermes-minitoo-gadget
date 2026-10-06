@@ -2,54 +2,67 @@
 
 ## Principle
 
-Hermes Gadget SDK remains the device runtime. This repository should contain only MiniToo-specific adaptation.
+Hermes Gadget SDK remains the device runtime. This repository contains only MiniToo-specific adaptation.
 
-MiniToo knowledge is split into two layers:
+MiniToo knowledge is split into:
 
 - runtime code under `src/hermes_minitoo/`;
 - preserved reverse-engineering evidence under `research/`.
 
-The capability registry in `src/hermes_minitoo/capabilities.py` is the seam between them. A research finding can be visible to developers without pretending it is supported.
-
-## Current integration seam
+## Integration seam
 
 Hermes Gadget `v0.2.0` constructs `hermes_gadget.linux.display.Display` lazily from the Linux `Client`. At startup, `hermes-minitoo` replaces that class with `MiniTooDisplay`, then runs the unmodified upstream Linux control/service loop.
 
-This is intentionally a compatibility shim, not a fork.
+This is a compatibility shim, not a Hermes fork.
 
-## Current display pipeline
+## Native display pipeline
 
-1. Hermes Gadget native C++ core renders its normal UI into RGB565.
-2. `MiniTooDisplay.present()` copies the current framebuffer.
-3. RGB565 LE is converted to RGB888.
-4. Only the latest pending frame is retained.
-5. A worker thread Zstd-compresses and sends the image through MiniToo's RFCOMM application channel.
+1. Hermes Gadget native C++ renderer creates a **160×128 RGB565** framebuffer.
+2. `MiniTooDisplay.present()` copies it and converts it to exact RGB888.
+3. A worker invokes system `liblzo2` via `ctypes`.
+4. The frame is compressed as a complete LZO1X stream.
+5. The same stream is immediately decompressed and compared against all 61,440 source bytes.
+6. The verified stream is wrapped as:
+   `23 01 <delay_be16> 08 0A 00 <lzo_len_be32> <lzo>`.
+7. Transport sends a `0x8B` size announcement and waits for the exact ready response.
+8. Payload is sent as ordered 256-byte `0x8B` chunks on the same RFCOMM connection.
 
-The background worker prevents Bluetooth transfer latency from blocking WebSocket traffic, audio handling, controls, or the Hermes Gadget core clock.
+The display worker uses **latest-frame-wins** semantics: if Hermes redraws faster than Bluetooth can upload, stale intermediate frames are discarded instead of queued.
 
-## Planned display pipeline
+## Why not the original 128×128 Zstandard path?
 
-Research now points to a better native-resolution route:
+It was useful as an early, already-understood compatibility path, but newer physical-device testing demonstrates that MiniToo supports its actual **160×128** LCD through the `0x23` lossless animation format.
 
-1. render Hermes Gadget at 160×128;
-2. convert to exact 61,440-byte RGB888;
-3. MiniLZO1X compress and verify round trip;
-4. wrap in the MiniToo `0x23` animation payload with cell geometry `08 0A`;
-5. announce over `0x8B`;
-6. wait for ready ACK;
-7. send ordered 256-byte chunks on one persistent RFCOMM connection.
+The native path:
 
-The old and new paths should remain separate codecs until the new path is physically verified on Linux.
+- uses the whole panel;
+- avoids rescaling/cropping a 128×128 canvas;
+- avoids JPEG artifacts;
+- provides a stricter handshake;
+- performs local lossless verification before transmit.
+
+The old Zstandard format stays documented only as reverse-engineering history.
 
 ## Audio pipeline
 
-No proprietary MiniToo audio protocol is required for Hermes speech. Hermes Gadget's existing Linux PortAudio backend is configured with MiniToo's system Bluetooth audio sink. On a modern Linux host that will normally be provided by PipeWire/WirePlumber or PulseAudio compatibility.
+Hermes Gadget's existing Linux PortAudio backend targets MiniToo's normal Bluetooth audio sink through the host audio stack (typically PipeWire/WirePlumber). No proprietary Divoom audio protocol is needed for Hermes speech.
 
-Proprietary volume/playback commands may later be exposed as optional device actions, but should not replace standard OS audio controls without a reason.
+## Safety profile
+
+Defaults follow the conservative hardware-tested live-stream profile:
+
+- 2,500 ms update interval;
+- 256-byte chunks;
+- 5 ms inter-chunk delay;
+- 600,000-byte payload ceiling;
+- one persistent RFCOMM client;
+- complete upload serialization.
+
+Faster refresh should be based on measurements from the actual Linux host, not on socket writability alone.
 
 ## Future action layer
 
-Likely Hermes Gadget actions, in order:
+Likely Hermes Gadget actions:
 
 - brightness;
 - screen on/off;
@@ -61,24 +74,14 @@ Firmware work remains completely separate from normal gadget startup.
 
 ## Firmware boundary
 
-No firmware binary, patch, OTA writer, DFU/JTAG routine or destructive probe belongs in the default runtime.
-
-If firmware research becomes part of this repository, it should start as:
-
-- metadata acquisition;
-- hash verification;
-- offline parsing;
-- read-only hardware identification.
-
-Any write path should be an explicit research tool with separate warnings and recovery documentation.
+No firmware binary, patch, OTA writer, DFU/JTAG routine or destructive probe belongs in the default runtime. Firmware research starts read-only: metadata, hashes, offline parsing and hardware identification.
 
 ## Next milestones
 
-1. Physical Linux/MiniToo smoke test: RFCOMM image only.
-2. Verify persistent RFCOMM reconnect behavior.
-3. Verify RFCOMM and A2DP remain active simultaneously on BlueZ.
-4. Migrate to the native 160×128 lossless live path.
-5. Add brightness and screen-power actions.
-6. Add custom-face discovery/switching.
-7. Add systemd install helper after physical verification.
-8. If the shim proves stable, propose a generic pluggable Linux display backend API to Hermes Gadget upstream.
+1. Physical Linux/MiniToo native-frame smoke test.
+2. Verify RFCOMM + A2DP coexistence.
+3. Measure upload latency and tune update scheduling.
+4. Add brightness and screen-power actions.
+5. Add custom-face discovery/switching.
+6. Add systemd install helper after hardware validation.
+7. If the shim proves stable, propose a pluggable Linux display backend API upstream to Hermes Gadget.

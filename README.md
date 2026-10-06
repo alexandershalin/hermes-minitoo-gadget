@@ -2,86 +2,75 @@
 
 Experimental Linux adapter that turns a **Divoom MiniToo** into the display and speaker for a **Hermes Gadget** device.
 
-The project deliberately keeps **Hermes Gadget SDK as the core**. Pairing, Hermes protocol, conversation state, native renderer, audio streaming and the Linux control socket come from Hermes Gadget. This repository adds MiniToo-specific Bluetooth/display adaptation around that core.
+**Hermes Gadget SDK remains the core.** Pairing, Hermes protocol, conversation state, native renderer, audio streaming and the Linux control socket come from Hermes Gadget. This repository supplies MiniToo-specific Bluetooth/display adaptation.
+
+## Current display backend
+
+The runtime now uses the MiniToo's **native 160×128 lossless live path**:
+
+```text
+Hermes Gadget RGB565 160×128
+        ↓
+RGB888 (61,440 exact bytes)
+        ↓
+LZO1X compress + byte-for-byte local round-trip verification
+        ↓
+MiniToo 0x23 animation payload: 23 01 <delay> 08 0A 00 <len> <LZO>
+        ↓
+0x8B announce
+        ↓
+wait for exact 8B 55 00 01 ready ACK
+        ↓
+ordered 256-byte 0x8B chunks
+        ↓
+MiniToo LCD
+```
+
+This replaces the original 128×128/Zstandard compatibility backend. The older path remains documented under `research/` but is no longer used at runtime.
+
+The lossless path is based on the real-device-verified work in `sirnugget11/divoom-minitoo-dotnet`. Linux compression uses the system `liblzo2` through Python `ctypes`; every frame is decompressed locally and compared byte-for-byte before Bluetooth transmission.
 
 ## Status
 
-Early development / hardware-unverified on this project's Linux target.
+Implemented:
 
-Implemented now:
+- Hermes Gadget SDK `v0.2.0` as runtime core.
+- Native Hermes Gadget canvas: **160×128**.
+- Lossless LZO1X RGB888 MiniToo live payload.
+- Exact ready-ACK handling before chunks.
+- Persistent Bluetooth Classic RFCOMM/SPP connection.
+- Conservative 256-byte chunks, 5 ms pacing, 600 KB payload guard.
+- Latest-frame-wins worker queue so Bluetooth cannot backlog stale Hermes screens.
+- Hermes Gadget Linux audio output can target MiniToo as a normal Bluetooth speaker.
+- CLI/status/control socket and research capability registry.
 
-- Hermes Gadget SDK `v0.2.0` is the runtime core.
-- Hermes Gadget's native framebuffer is exported to MiniToo through Bluetooth Classic RFCOMM/SPP.
-- The current compatibility backend renders `128x128` RGB888 and uses the community-documented Zstandard image path.
-- Display uploads run on a worker thread so Bluetooth transfer latency does not block the Hermes Gadget event loop.
-- Hermes Gadget's existing Linux audio backend can target MiniToo as a Bluetooth speaker.
-- Existing Hermes Gadget local control socket is reused for `status`, `send`, and button commands.
+Still awaiting physical verification on this project's Linux host:
 
-Not yet physically verified here:
+- the first native 160×128 Hermes screen on the user's MiniToo;
+- RFCOMM + A2DP simultaneously on BlueZ/PipeWire;
+- best update interval for interactive Hermes state changes;
+- reconnect behavior on the actual adapter.
 
-- simultaneous RFCOMM display traffic + A2DP audio on the Linux host;
-- exact BlueZ/PipeWire audio device naming;
-- sustained refresh rate and reconnect behavior;
-- the newer native `160x128` lossless live-frame path.
-
-## Research archive
-
-MiniToo reverse engineering is moving quickly, and this project is intended to grow beyond the first Hermes display backend.
-
-Start here:
-
-- [Research index](research/README.md)
-- [Known MiniToo hacks and protocol capabilities](research/HACKS.md)
-- [Firmware / OTA / custom-code research](research/FIRMWARE.md)
-- [Source map](research/SOURCES.md)
-- [Firmware asset manifest placeholder](research/firmware/MANIFEST.md)
-
-The repository also exposes a machine-readable status registry:
-
-```bash
-hermes-minitoo capabilities
-```
-
-A capability marked `planned`, `research`, or `blocked` is **not implemented by this project yet**, even if another community project has demonstrated it.
-
-## Architecture
-
-```text
-Hermes Agent
-    │
-    │ Hermes Gadget protocol / WebSocket
-    ▼
-Hermes Gadget Linux client (SDK v0.2.0)
-    │
-    ├── native Hermes Gadget renderer ──► MiniTooDisplay
-    │                                      │
-    │                                      └── RFCOMM/SPP ──► MiniToo LCD
-    │
-    └── Hermes Gadget audio output ──────► PortAudio/PipeWire ──► MiniToo speaker
-```
-
-The adapter currently hooks Hermes Gadget's Linux `Display` class at process startup. That is intentionally small and keeps the upstream Linux `Client` unchanged. A cleaner pluggable display-backend API can later be proposed upstream.
-
-## Install from a checkout
-
-Linux with Bluetooth support, Python 3.10+, Git, a compiler/CMake required by the Hermes Gadget native core, PortAudio, and BlueZ are expected.
+## Install
 
 ```bash
 sudo apt update
-sudo apt install git python3-venv cmake build-essential libportaudio2 bluez
+sudo apt install git python3-venv cmake build-essential libportaudio2 liblzo2-2 bluez
+
+git clone https://github.com/alexandershalin/hermes-minitoo-gadget.git
+cd hermes-minitoo-gadget
 
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[dev]'
 
 hermes-gadget build-sim --test
+cp examples/config.example.json config.json
 ```
 
-Pair MiniToo with Linux using normal BlueZ tools first. Then:
+Set the MiniToo Bluetooth address in `config.json`, then:
 
 ```bash
-cp examples/config.example.json config.json
-$EDITOR config.json
 hermes-minitoo run --config config.json
 ```
 
@@ -92,21 +81,15 @@ hermes-minitoo status
 hermes-minitoo send "Hello from MiniToo"
 ```
 
-Approve the normal Hermes Gadget pairing code on the Hermes host with:
+Approve the ordinary Hermes Gadget pairing code on the Hermes host:
 
 ```bash
 hermes gadget approve CODE
 ```
 
-## Current display path vs. the better future path
+## Configuration
 
-The first backend was intentionally based on the already-working `128x128` RGB888 + Zstandard `0x8B` path documented by the early MiniToo reverse-engineering work.
-
-Newer independent work has demonstrated a better **native 160×128 lossless live path**, using a `0x23` animation payload, MiniLZO-compressed RGB888, cell dimensions `08 0A`, a ready ACK, and 256-byte `0x8B` chunks. That path is now the preferred future backend and is tracked as a planned capability rather than silently changing the initial implementation before Linux hardware verification.
-
-See [research/HACKS.md](research/HACKS.md).
-
-## Example configuration
+Safe starting profile:
 
 ```json
 {
@@ -115,8 +98,11 @@ See [research/HACKS.md](research/HACKS.md).
   "minitoo": {
     "address": "AA:BB:CC:DD:EE:FF",
     "channel": 1,
-    "max_fps": 2.0,
-    "packet_delay_ms": 12
+    "update_interval_ms": 2500,
+    "chunk_delay_ms": 5,
+    "ready_timeout_ms": 8000,
+    "reconnect_delay_ms": 2000,
+    "max_payload_bytes": 600000
   },
   "audio": {
     "output": "Divoom MiniToo",
@@ -125,10 +111,37 @@ See [research/HACKS.md](research/HACKS.md).
 }
 ```
 
-`audio` is passed to Hermes Gadget's Linux audio implementation. A future external microphone can be added as `audio.input` without changing the display adapter.
+The 2.5-second interval is intentionally conservative for the first hardware validation. Once measured on the actual Linux server, it can be tuned downward without changing the codec.
 
-## License and attribution
+## Research archive
 
-No project license has been selected yet. Hermes Gadget SDK remains under its own MIT license; other dependencies and research projects keep their respective licenses.
+This project is intended to grow beyond the first Hermes backend:
 
-No Divoom firmware, app binaries, decompiled sources, vendor datasheets, keys, or account data are redistributed here. Protocol notes are an independent research index pointing to public work.
+- [Research index](research/README.md)
+- [Known MiniToo hacks](research/HACKS.md)
+- [Firmware / OTA / custom-code research](research/FIRMWARE.md)
+- [Source map](research/SOURCES.md)
+- [Firmware asset manifest placeholder](research/firmware/MANIFEST.md)
+
+Machine-readable status:
+
+```bash
+hermes-minitoo capabilities
+```
+
+## Architecture
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Attribution
+
+- Hermes Gadget SDK: <https://github.com/Adolanium/hermes-gadget-sdk>
+- Native 160×128 MiniToo live path: <https://github.com/sirnugget11/divoom-minitoo-dotnet>
+- Broader MiniToo reverse engineering: <https://github.com/bugzmanov/divoom-minitoo>
+- Earlier image transport work: <https://github.com/alvinunreal/divoom-minitoo-osx>
+
+No Divoom firmware, app binaries, decompiled vendor source, proprietary libraries or account data are redistributed here.
+
+## License
+
+No project license has been selected yet. Dependencies and research sources keep their respective licenses.

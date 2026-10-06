@@ -1,8 +1,4 @@
-"""Known MiniToo capabilities and research placeholders.
-
-This registry intentionally separates features implemented here from capabilities
-demonstrated or investigated by other MiniToo reverse-engineering projects.
-"""
+"""Known MiniToo capabilities and research placeholders."""
 
 from __future__ import annotations
 
@@ -17,15 +13,15 @@ class Capability:
 
 
 CAPABILITIES: dict[str, Capability] = {
-    "display.compat_zstd_128": Capability(
-        "implemented",
-        "128x128 RGB888/Zstandard live image path used by the initial backend",
-        "research/HACKS.md#31-current-project-path-128128-rgb888--zstandard",
-    ),
     "display.native_lzo_160x128": Capability(
-        "planned",
+        "implemented",
         "native 160x128 lossless RGB888/MiniLZO live path over 0x8B",
         "research/HACKS.md#32-native-160128-lossless-live-frames",
+    ),
+    "display.compat_zstd_128": Capability(
+        "legacy",
+        "early 128x128 RGB888/Zstandard path retained as research, no longer the runtime backend",
+        "research/HACKS.md#31-legacy-path-128128-rgb888--zstandard",
     ),
     "display.native_zstd_160x128": Capability(
         "research",

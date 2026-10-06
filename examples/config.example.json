@@ -4,12 +4,11 @@
   "minitoo": {
     "address": "AA:BB:CC:DD:EE:FF",
     "channel": 1,
-    "max_fps": 2.0,
-    "packet_delay_ms": 12,
-    "request_timeout_ms": 250,
+    "update_interval_ms": 2500,
+    "chunk_delay_ms": 5,
+    "ready_timeout_ms": 8000,
     "reconnect_delay_ms": 2000,
-    "zstd_level": 17,
-    "zstd_window_log": 17
+    "max_payload_bytes": 600000
   },
   "audio": {
     "output": "Divoom MiniToo",

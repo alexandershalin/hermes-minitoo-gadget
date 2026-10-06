@@ -1,252 +1,119 @@
 # Divoom MiniToo reverse-engineering map
 
-Snapshot: **2026-10-06**. This is a preservation document, not a claim that every item works in this repository.
+Snapshot: **2026-10-06**. Preservation document; not every item is supported by this repository.
 
 ## 1. Hardware and Bluetooth surface
 
-**Verified/reported by community projects:**
+Community work reports Bluetooth Classic RFCOMM/SPP control, standard Bluetooth speaker profiles, a 160×128 IPS panel, and one application RFCOMM owner at a time. Channels 1 and 10 are commonly observed, with channel 1 the primary tested path.
 
-- Bluetooth control is **Classic RFCOMM/SPP**, not BLE/GATT.
-- `Divoom MiniToo-Audio` exposes JL-style services including SPP and standard speaker profiles. Community probes report RFCOMM channels **1** and **10**; channel 1 is the most commonly tested application path.
-- The device effectively allows one application RFCOMM owner at a time. A phone running the Divoom app can conflict with a desktop client.
-- Standard audio uses the normal Bluetooth speaker stack (A2DP/AVRCP; some SDP dumps also advertise HFP/HID).
-- FCC filing **A8I-MINITOO** includes public internal photos.
-- Firmware research reports an **Actions ATS2831** application processor plus a **JieLi AC690N** USB-side/bridge component and a **160×128 IPS panel**. Treat the exact CPU-core identity as a research claim until independently confirmed; public notes themselves contain some mixed ARM/CK802 terminology.
+FCC filing **A8I-MINITOO** contains public internal photos.
 
-**Interesting contradiction to preserve:** retail/spec listings often say “no microphone”, while protocol research reports a working built-in **noise-meter tool** that reacts to ambient sound. The source of that signal should be verified on our physical unit before assuming microphone hardware is available to applications.
+Firmware research reports an Actions ATS2831 application processor and JieLi AC690N-related component. Treat exact CPU/debug-core terminology as research until independently confirmed.
 
 ## 2. Generic SPP framing
-
-Common modern frame:
 
 ```text
 01 <len_le16> <command> <body...> <checksum_le16> 02
 ```
 
-Where:
+`len = body_length + 3`. Checksum is the 16-bit byte sum of length, command and body.
 
-- `len = body_length + 3`;
-- checksum is the 16-bit sum of length bytes, command byte and body;
-- modern MiniToo traffic does not use the old Divoom escape layer.
-
-The current project implements this framing in `src/hermes_minitoo/protocol.py`.
+Implemented in `src/hermes_minitoo/protocol.py`.
 
 ## 3. Display paths
 
-### 3.1 Current project path: 128×128 RGB888 + Zstandard
+### 3.1 Legacy path: 128×128 RGB888 + Zstandard
 
-Status: **implemented here, hardware verification pending on Linux**.
+Status: **verified by earlier community work; no longer used by this runtime**.
 
-Early reverse engineering demonstrated:
-
-- command `0x8B`;
-- announce total size, wait/request, then indexed 256-byte chunks;
-- 128×128 RGB888;
-- Zstandard with a 128 KiB window (`window_log=17`);
-- still and multi-frame payloads.
-
-This is the conservative compatibility path used by the first Hermes backend.
+Early reverse engineering demonstrated `0x8B`, 256-byte chunks, 128×128 RGB888 and Zstandard with a 128 KiB window. This was the project's first backend and remains useful for comparison and firmware-family research.
 
 ### 3.2 Native 160×128 lossless live frames
 
-Status: **verified upstream, planned here**.
+Status: **implemented here; upstream real-device verified; Linux hardware validation pending**.
 
-The Windows .NET implementation reports a cleaner live path:
+Payload:
 
 ```text
-0x23
-frame_count
-delay_be16
+23
+01
+<frame_delay_u16_be>
 08 0A
 00
-lzo_length_be32
-MiniLZO1X(RGB888 160×128)
+<lzo_length_u32_be>
+<complete LZO1X RGB888 stream>
 ```
 
-Then the payload is transferred with `0x8B`:
+Rules:
 
-- announce: `00 <total_u32_le>`;
-- wait for ready response matching `8B 55 00 01`;
-- chunks: `01 <total_u32_le> <index_u16_le> <up to 256 bytes>`;
-- keep one persistent RFCOMM session;
-- serialize complete uploads;
-- paced chunks (the reference uses ~5 ms);
-- do not flood the firmware.
+- input is exactly 160×128×3 = 61,440 row-major RGB888 bytes;
+- encoding marker `00` means lossless MiniLZO/LZO1X;
+- `08 0A` are 16-pixel cell dimensions, not literal pixel dimensions;
+- complete LZO stream ends `11 00 00`;
+- this project locally decompresses every compressed frame and compares all source bytes before sending.
 
-Why this matters: it preserves native **160×128** geometry and avoids the live JPEG checkerboard artifacts reported around sharp text.
+Transfer over `0x8B`:
 
-This is the preferred future Hermes display backend.
+- announce `00 <total_u32_le>`;
+- require ready response `8B 55 00 01`;
+- chunks `01 <total_u32_le> <index_u16_le> <up to 256 bytes>`;
+- persistent connection and serialized uploads;
+- conservative 5 ms chunk pacing and 600 KB payload ceiling.
+
+Reference: `sirnugget11/divoom-minitoo-dotnet`.
 
 ### 3.3 Native 160×128 RGB/Zstd reports
 
-Status: **reported; needs reconciliation**.
+Status: **research**.
 
-At least one newer MiniToo/Codex project reports native 160×128 lossless RGB/Zstandard output. This differs from the independently verified MiniLZO path above. Do not merge codec assumptions until packet captures or source comparison reconcile the two formats/firmware variants.
+Some newer projects report native-resolution RGB/Zstandard variants. This may reflect a different payload builder or firmware path. Do not mix codec formats without packet-level reconciliation.
 
 ### 3.4 JPEG / file / gallery paths
 
-Status: **verified upstream but not suitable as the main live UI path**.
-
-Several distinct state machines exist:
-
-- live animation `0x8B`;
-- local-picture/file path around `0x8F`;
-- photo/custom-face flows including `0x8D` and `0xBE`;
-- JPEG-backed payloads.
-
-Important lesson: `Draw/LocalEq` + `0x8F` can put the device into a real **LOADING** state and is the wrong mechanism for frequent dashboard refreshes.
+Multiple other state machines exist: local-picture `0x8F`, photo/custom-face paths around `0x8D`/`0xBE`, and JPEG payloads. `Draw/LocalEq` + `0x8F` can enter a visible LOADING state and is wrong for frequent live updates.
 
 ## 4. Persistent custom faces and fast state switching
 
 Status: **verified upstream, planned here**.
 
-Useful pattern for agent states:
-
-1. upload a few persistent custom GIF/faces once;
-2. switch instantly by real `ClockId` using `Channel/SetClockSelectId`;
-3. avoid retransmitting a full frame for every state change.
-
-Public testing has used real custom face IDs such as **984** and **986** on specific devices/accounts. These values are **not universal constants** and must be discovered for the actual device.
-
-Persistent installation uses a more involved custom-face/file workflow (research projects describe `Channel/SetCustom` and `0xBE`). It should not run in a live refresh loop.
+Upload persistent custom faces once, then switch rapidly using their real `ClockId` with `Channel/SetClockSelectId`. IDs such as 984/986 seen in examples are device/account-specific and must not be hard-coded as universal values.
 
 ## 5. Brightness, screen and audio-control commands
 
-### Brightness
+Verified brightness routes include JSON `Channel/SetBrightness` and binary opcode `0x32`. Screen on/off works through JSON and an extended `0xBD/0x2F` path while preserving the underlying view.
 
-Status: **verified upstream**.
-
-JSON:
-
-```json
-{"Command":"Channel/SetBrightness","Brightness":50}
-```
-
-Binary legacy opcode `0x32` with one value byte is also reported working and is useful for low-latency control.
-
-### Screen on/off
-
-Status: **verified upstream**.
-
-JSON:
-
-```json
-{"Command":"Channel/OnOffScreen","OnOff":0}
-{"Command":"Channel/OnOffScreen","OnOff":1}
-```
-
-Extended `0xBD / 0x2F` screen-control variants are also mapped. Off/on preserves the underlying view.
-
-### Volume and play/pause
-
-Status: **app-mapped/reported; needs our verification**.
-
-Under extended command dispatcher `0xBD`:
-
-- ext `0x34` — set volume;
-- ext `0x36` — music play/pause.
-
-For Hermes audio, normal OS A2DP volume may be simpler and safer than proprietary commands.
+Extended command mappings also report volume and play/pause controls. Hermes speech should still prefer normal OS A2DP unless proprietary control adds value.
 
 ## 6. Built-in tools
 
-Status: **verified upstream**.
-
-Opcode `0x72` enters native tools:
-
-- `0` stopwatch;
-- `1` scoreboard;
-- `2` noise meter;
-- `3` countdown.
-
-Warnings:
-
-- stopwatch/countdown paths can produce loud alarms;
-- “off” often clears values but does **not** leave the tool view;
-- research reports no reliable software “return to default clock face” command. Hardware button/reboot is the dependable reset.
-
-Potential Hermes use: native scoreboard/noise views as novelty actions, but they are lower priority than the normal renderer.
+Opcode `0x72` exposes stopwatch, scoreboard, noise meter and countdown. Stopwatch/countdown can produce loud alarms. Tool “off” may not leave the tool view, and hardware button/reboot is the dependable return path.
 
 ## 7. Built-in views and games
 
-Status: **verified upstream**.
-
-Known view switches include:
-
-- `{"Command":"Photo/Enter"}` — photo slideshow;
-- `{"Command":"Lyric/Enter"}` — animated astronaut/lyric view;
-- binary `0xA0` — built-in games/Tetris variants.
-
-Game exit returns to the previous mode, not necessarily the normal clock.
+Reported/verified switches include photo slideshow, lyric/astronaut view and built-in games through binary `0xA0`.
 
 ## 8. Photo albums
 
-Status: **partially verified upstream / complex**.
-
-Documented commands include:
-
-- `Photo/NewAlbum`;
-- `Photo/LocalAddToAlbum`;
-- `Photo/DevicePhotoToAlbum`;
-- local picture/file transfers.
-
-This may eventually be useful for storing Hermes artwork or offline screens, but custom-face slots are probably more useful for low-latency agent states.
+Research maps `Photo/NewAlbum`, `Photo/LocalAddToAlbum`, `Photo/DevicePhotoToAlbum` and local file transfer paths. Potential future use: persistent Hermes art/offline screens.
 
 ## 9. Notifications
 
-Status: **verified upstream for basic notification path; experimental and crash-prone around custom icons**.
-
-Community work reports ANCS-style short **text + built-in icon** notifications working end-to-end.
-
-Do **not** probe arbitrary notification-image paths casually: one tested custom-icon flow around `0x3C SPP_SET_ANCS_NOTICE_PIC` is documented as crashing/rebooting the device.
-
-Future Hermes use: short alerts when a task finishes, approval is needed, or an agent requires attention.
+Basic ANCS-style text + built-in-icon notifications have been demonstrated. Avoid arbitrary custom notification-image probing: at least one `0x3C` custom-icon path is documented as crashing/rebooting the device.
 
 ## 10. Queries and broadcasts
 
-Reported responses include:
+Reported responses include `Device/GetStorageStatus` and `WhiteNoise/Get`. Background traffic includes keepalives and Tomato/Pomodoro state. Many plausible app JSON commands do not respond on MiniToo.
 
-- `Device/GetStorageStatus`;
-- `WhiteNoise/Get`.
+## 11. External integrations already demonstrated
 
-Background traffic includes keepalives and Tomato/Pomodoro state broadcasts.
+Public projects use MiniToo as Claude/Codex status displays, Home Assistant terminals, sensor/occupancy displays and desktop dashboards. Home Assistant + ESP32 proxy work suggests a future remote Bluetooth bridge when Hermes and MiniToo are not co-located.
 
-Many plausible JSON GET commands simply do not respond on MiniToo even if they exist in the Android app. Treat Android enum presence as evidence of a code path, **not** proof MiniToo implements it.
+## 12. Candidate Hermes roadmap
 
-## 11. White noise / Pomodoro / other app features
-
-The app and firmware expose traces of:
-
-- multiple white-noise channels;
-- Tomato/Pomodoro state;
-- timers/tools;
-- gallery/photo subsystems.
-
-Most write semantics remain incompletely mapped. Preserve these as research targets rather than public APIs.
-
-## 12. External integrations already demonstrated
-
-Public projects show MiniToo used as:
-
-- Claude Code status display;
-- Codex status/quota display;
-- Home Assistant display;
-- occupancy/sensor status terminal;
-- Windows “screen”/dashboard target;
-- macOS persistent RFCOMM display daemon.
-
-There is also Home Assistant work that layers MiniToo-specific image transfer over generic Divoom transport and ESP32 proxy projects, suggesting a future route for **remote Bluetooth bridging** when Hermes and MiniToo are not physically co-located.
-
-## 13. Candidate Hermes roadmap
-
-The useful order for this project is:
-
-1. physically verify current Linux RFCOMM + A2DP coexistence;
-2. replace the compatibility renderer with native 160×128 lossless live frames;
-3. add brightness/screen power as Hermes Gadget actions;
-4. add persistent custom-face install/discovery + instant ClockId switching for agent states;
-5. add notification action;
-6. investigate photo storage/gallery;
+1. physically verify native 160×128 Linux path;
+2. verify RFCOMM + A2DP coexistence;
+3. add brightness/screen actions;
+4. add custom-face discovery/switching;
+5. add notifications;
+6. investigate photo storage;
 7. only then consider firmware-level work.
-
-See `hermes-minitoo capabilities` and the GitHub issues for tracked placeholders.
