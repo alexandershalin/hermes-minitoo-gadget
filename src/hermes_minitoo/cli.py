@@ -23,6 +23,7 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--config", type=Path, required=True)
     sub.add_parser("status")
     sub.add_parser("messages")
+    sub.add_parser("capabilities", help="Show implemented and research-only MiniToo capabilities")
     send = sub.add_parser("send")
     send.add_argument("text")
     button = sub.add_parser("button")
@@ -37,6 +38,10 @@ def main() -> int:
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     try:
+        if args.command == "capabilities":
+            from .capabilities import capabilities_dict
+            print(json.dumps(capabilities_dict(), indent=2, ensure_ascii=False, sort_keys=True))
+            return 0
         if args.command == "run":
             from .runtime import run
             run(args.config, args.state_dir)
