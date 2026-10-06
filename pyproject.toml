@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-minitoo-gadget"
+version = "0.1.0.dev0"
+description = "Divoom MiniToo display/audio backend for Hermes Gadget SDK on Linux."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "hermes-gadget @ git+https://github.com/Adolanium/hermes-gadget-sdk.git@v0.2.0",
+  "sounddevice>=0.4.6,<0.6",
+  "zstandard>=0.22,<1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+hermes-minitoo = "hermes_minitoo.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

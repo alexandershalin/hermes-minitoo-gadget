@@ -1,0 +1,18 @@
+{
+  "server": "ws://127.0.0.1:8765/gadget",
+  "name": "MiniToo Gadget",
+  "minitoo": {
+    "address": "AA:BB:CC:DD:EE:FF",
+    "channel": 1,
+    "max_fps": 2.0,
+    "packet_delay_ms": 12,
+    "request_timeout_ms": 250,
+    "reconnect_delay_ms": 2000,
+    "zstd_level": 17,
+    "zstd_window_log": 17
+  },
+  "audio": {
+    "output": "Divoom MiniToo",
+    "rate": 48000
+  }
+}
