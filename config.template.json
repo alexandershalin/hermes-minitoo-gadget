@@ -1,0 +1,17 @@
+{
+  "server": "ws://127.0.0.1:8765/gadget",
+  "name": "MiniToo Gadget",
+  "minitoo": {
+    "address": "REAL_MAC_HERE",
+    "channel": 1,
+    "update_interval_ms": 2500,
+    "chunk_delay_ms": 5,
+    "ready_timeout_ms": 8000,
+    "reconnect_delay_ms": 2000,
+    "max_payload_bytes": 600000
+  },
+  "audio": {
+    "output": "Divoom MiniToo",
+    "rate": 48000
+  }
+}

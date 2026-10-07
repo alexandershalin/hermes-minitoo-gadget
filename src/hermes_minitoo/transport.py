@@ -12,6 +12,58 @@ from .protocol import FrameParser, build_transfer, is_live_ready
 LOG = logging.getLogger(__name__)
 
 
+def _open_rfcomm(address: str, channel: int, timeout: float) -> socket.socket:
+    """Open an RFCOMM socket; fall back to ctypes when Python lacks AF_BLUETOOTH."""
+    family = getattr(socket, "AF_BLUETOOTH", None)
+    proto = getattr(socket, "BTPROTO_RFCOMM", None)
+    if family is not None and proto is not None:
+        sock = socket.socket(family, socket.SOCK_STREAM, proto)
+        try:
+            sock.settimeout(timeout)
+            sock.connect((address, channel))
+            return sock
+        except Exception:
+            sock.close()
+            raise
+    import ctypes
+    import errno
+    import os
+    import select
+    import struct
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    fd = libc.socket(31, socket.SOCK_STREAM, 3)  # AF_BLUETOOTH, BTPROTO_RFCOMM
+    if fd < 0:
+        raise OSError(ctypes.get_errno(), "RFCOMM socket() failed")
+    try:
+        os.set_blocking(fd, False)
+        raw = bytes(int(x, 16) for x in address.split(":"))[::-1]
+        addr = struct.pack("<H6sBx", 31, raw, channel)
+        buf = ctypes.create_string_buffer(addr, len(addr))
+        rc = libc.connect(fd, buf, len(addr))
+        err = ctypes.get_errno() if rc < 0 else 0
+        if rc < 0 and err != errno.EINPROGRESS:
+            raise OSError(err, os.strerror(err))
+        if rc < 0:
+            _, w, _ = select.select([], [fd], [], timeout)
+            if not w:
+                raise TimeoutError("RFCOMM connect timed out")
+            e = ctypes.c_int(0)
+            ln = ctypes.c_uint(4)
+            libc.getsockopt(fd, 1, 4, ctypes.byref(e), ctypes.byref(ln))  # SOL_SOCKET, SO_ERROR
+            if e.value:
+                raise OSError(e.value, os.strerror(e.value))
+        sock = socket.socket(31, socket.SOCK_STREAM, 3, fileno=fd)
+        sock.settimeout(timeout)
+        return sock
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+
+
 class RFCOMMTransport:
     def __init__(
         self,
@@ -48,22 +100,13 @@ class RFCOMMTransport:
         if now - self.last_failure < self.reconnect_delay:
             raise ConnectionError("MiniToo reconnect backoff is active")
         try:
-            family = getattr(socket, "AF_BLUETOOTH")
-            proto = getattr(socket, "BTPROTO_RFCOMM")
-        except AttributeError as exc:
-            raise RuntimeError("Python was built without Linux Bluetooth socket support") from exc
-
-        sock = socket.socket(family, socket.SOCK_STREAM, proto)
-        try:
-            sock.settimeout(max(1.0, self.ready_timeout))
-            sock.connect((self.address, self.channel))
-            self.sock = sock
-            self.parser = FrameParser()
-            LOG.info("connected to MiniToo %s RFCOMM channel %d", self.address, self.channel)
+            sock = _open_rfcomm(self.address, self.channel, max(1.0, self.ready_timeout))
         except Exception:
             self.last_failure = time.monotonic()
-            sock.close()
             raise
+        self.sock = sock
+        self.parser = FrameParser()
+        LOG.info("connected to MiniToo %s RFCOMM channel %d", self.address, self.channel)
 
     def close(self) -> None:
         if self.sock is not None:
