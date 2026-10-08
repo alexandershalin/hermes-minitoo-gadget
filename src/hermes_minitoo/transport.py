@@ -143,8 +143,10 @@ class RFCOMMTransport:
             )
         transfer = build_transfer(payload)
 
+        # connect() сам выставляет last_failure при неудаче; ошибка «backoff active»
+        # не должна продлевать паузу, иначе она никогда не кончится при повторах раз в секунду.
+        self.connect()
         try:
-            self.connect()
             assert self.sock is not None
 
             self.sock.sendall(transfer.start)

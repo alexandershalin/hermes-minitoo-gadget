@@ -32,7 +32,7 @@ class MiniTooDisplay:
 
         self.update_interval_ms = int(config.get("update_interval_ms", 2500))
         self.last_queued = -self.update_interval_ms
-        self.retry_window_s = float(config.get("retry_window_s", 30))
+        self.retry_window_s = float(config.get("retry_window_s", 60))
         self.transport = RFCOMMTransport(
             config["address"],
             channel=int(config.get("channel", 1)),
@@ -121,6 +121,9 @@ class MiniTooDisplay:
                     # retry the same frame until it lands, unless a newer one arrived.
                     if elapsed > self.retry_window_s:
                         LOG.warning("MiniToo display update failed after %.0fs: %s", elapsed, exc)
+                        # Не терять экран: пусть present() заново возьмёт актуальный кадр.
+                        self.dirty = True
+                        self.last_queued = -self.update_interval_ms
                         break
                     LOG.warning("MiniToo display retry %d: %r", attempt, exc)
                     with self._condition:
