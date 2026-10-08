@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Play/Pause на колонке MiniToo (AVRCP) -> toggle записи голоса в Hermes."""
-import array, json, math, os, re, select, struct, subprocess, sys, time
+import array, json, math, os, re, select, struct, subprocess, sys, threading, time
 
 BIN = "/home/bishop/hermes-minitoo-gadget/.venv/bin/hermes-minitoo"
 PY = "/home/bishop/.hermes/installs/20715197cc5be820/environments/738223755d2649faa3439a3b8f7036ae/venv/bin/python"
@@ -51,7 +51,7 @@ def ensure_wav():
         os.replace(raw, SPEAK_WAV)
 
 
-def vad_wait(max_s=MAX_REC_S, silence_s=1.5, nospeech_s=12.0):
+def vad_wait(stop_evt=None, max_s=MAX_REC_S, silence_s=1.5, nospeech_s=12.0):
     """Ждёт конец фразы по тишине. Возвращает причину остановки."""
     proc = subprocess.Popen(["pw-record", f"--target={_audio('input')}", "--rate", "16000",
                              "--channels", "1", "--format", "s16", "-"],
@@ -61,6 +61,8 @@ def vad_wait(max_s=MAX_REC_S, silence_s=1.5, nospeech_s=12.0):
     try:
         while time.time() - t0 < max_s:
             buf = proc.stdout.read(chunk)
+            if stop_evt is not None and stop_evt.is_set():
+                return "кнопка"
             if not buf or len(buf) < chunk:
                 return "поток закрыт"
             a = array.array("h"); a.frombytes(buf)
@@ -116,8 +118,9 @@ def button(state):
     return r.returncode == 0
 
 
-def record_once():
-    """Одна запись: press -> VAD -> release. Индикатор и release гарантированы через finally."""
+def record_once(st):
+    """Одна запись: подсказка -> press -> VAD (или кнопка) -> release. Индикатор и release в finally."""
+    st["phase"] = "starting"
     try:
         r = subprocess.run(["pw-play", f"--target={_sink()}", SPEAK_WAV],
                            timeout=15, capture_output=True, text=True)
@@ -126,22 +129,50 @@ def record_once():
         log(f"pw-play: {exc!r}")
     if not button("press"):
         return
+    st["phase"] = "recording"
     set_ind("rec")
     log(f"запись начата, профиль={_profile()}")
     try:
-        why = vad_wait()
+        why = vad_wait(st["stop"])
     except Exception as exc:
         why = f"vad ошибка {exc!r}"
     finally:
         set_ind("done")
         button("release")
-    log(f"VAD: {why}; запись остановлена")
+    log(f"остановка: {why}")
+
+
+def worker(st):
+    try:
+        record_once(st)
+    except Exception as exc:
+        log(f"запись упала: {exc!r}")
+    finally:
+        st["phase"] = "idle"
+        st["end"] = time.time()
+
+
+def on_press(st):
+    """Реакция на нажатие. idle -> старт записи, recording -> досрочный стоп, иначе игнор."""
+    phase = st["phase"]
+    if phase == "idle":
+        if time.time() - st["end"] < DEBOUNCE_S:
+            return "debounce"
+        st["stop"] = threading.Event()
+        st["phase"] = "starting"
+        threading.Thread(target=worker, args=(st,), daemon=True).start()
+        return "start"
+    if phase == "recording":
+        st["stop"].set()
+        return "stop"
+    return "ignored"
 
 
 def main():
     ensure_wav()
     set_ind(None)  # не оставлять красный экран от прошлого запуска
-    last = 0.0
+    button("release")  # не оставлять «зажатую» кнопку talk после падения
+    st = {"phase": "idle", "end": 0.0, "stop": threading.Event()}
     fd = None
     while True:
         if fd is None:
@@ -167,21 +198,14 @@ def main():
             log("устройство пропало, жду")
             continue
         for i in range(0, len(data) - 23, 24):
-            _, _, typ, code, val = struct.unpack("llHHi", data[i:i + 24])
-            if typ == 1:
-                log(f"key code={code} val={val}")
-            if typ != 1 or val != 1 or code not in KEYS:
+            sec, usec, typ, code, val = struct.unpack("llHHi", data[i:i + 24])
+            if typ != 1:
                 continue
-            if time.time() - last < DEBOUNCE_S:
-                continue
-            record_once()
-            # сбросить нажатия, накопленные за время записи
-            try:
-                while os.read(fd, 24 * 64):
-                    pass
-            except OSError:
-                pass
-            last = time.time()
+            lag = time.time() - (sec + usec / 1e6)  # задержка между событием ядра и нашим чтением
+            note = ""
+            if val == 1 and code in KEYS:
+                note = on_press(st)
+            log(f"key code={code} val={val} phase={st['phase']} lag={lag:.2f}с {note}")
 
 
 if __name__ == "__main__":
