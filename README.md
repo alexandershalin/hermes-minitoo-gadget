@@ -113,6 +113,10 @@ Safe starting profile:
 
 The 2.5-second interval is intentionally conservative for the first hardware validation. Once measured on the actual Linux server, it can be tuned downward without changing the codec.
 
+## Handoff for reviewers
+
+[HANDOFF.md](HANDOFF.md) — full project context, session history, unresolved problems (button not delivered during recording, unreliable screen frames) and source map. Start here.
+
 ## Research archive
 
 This project is intended to grow beyond the first Hermes backend:
