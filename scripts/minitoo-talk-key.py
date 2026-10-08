@@ -116,27 +116,26 @@ def button(state):
 
 
 def record_once(st):
-    """Одна запись: подсказка -> press -> VAD (или кнопка) -> release. Индикатор и release в finally."""
+    """Одна запись: press (экран Listening уходит, пока канал стабилен) -> «Говорите» -> VAD/кнопка -> release."""
     st["phase"] = "starting"
-    try:
-        r = subprocess.run(["pw-play", f"--target={_sink()}", SPEAK_WAV],
-                           timeout=15, capture_output=True, text=True)
-        log(f"говорите rc={r.returncode} {r.stderr.strip()[:80]}")
-    except Exception as exc:
-        log(f"pw-play: {exc!r}")
     if not button("press"):
         return
-    st["phase"] = "recording"
-    set_ind("rec")
-    log(f"запись начата, профиль={_profile()}")
     try:
-        why = vad_wait(st["stop"])
-    except Exception as exc:
-        why = f"vad ошибка {exc!r}"
+        try:
+            r = subprocess.run(["pw-play", f"--target={_sink()}", SPEAK_WAV],
+                               timeout=15, capture_output=True, text=True)
+            log(f"говорите rc={r.returncode} {r.stderr.strip()[:80]}")
+        except Exception as exc:
+            log(f"pw-play: {exc!r}")
+        st["phase"] = "recording"
+        log(f"запись начата, профиль={_profile()}")
+        try:
+            why = vad_wait(st["stop"])
+        except Exception as exc:
+            why = f"vad ошибка {exc!r}"
+        log(f"остановка: {why}")
     finally:
-        set_ind("done")
         button("release")
-    log(f"остановка: {why}")
 
 
 def worker(st):
