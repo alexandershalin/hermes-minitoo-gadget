@@ -1,0 +1,11 @@
+[Unit]
+Description=MiniToo BT address watcher (re-pair on address change)
+After=hermes-minitoo.service
+
+[Service]
+ExecStart=/usr/bin/python3 /home/bishop/.local/bin/minitoo-autoaddr.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
