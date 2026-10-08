@@ -14,27 +14,41 @@ def default_state_dir() -> Path:
     return base / "hermes-minitoo-gadget"
 
 
+def _common(p: argparse.ArgumentParser, *, top: bool) -> None:
+    # Accepted both before and after the subcommand; the subparser copies use
+    # SUPPRESS so they never overwrite a value given before the subcommand.
+    p.add_argument("--state-dir", type=Path,
+                   default=default_state_dir() if top else argparse.SUPPRESS)
+    p.add_argument("--verbose", action="store_true",
+                   default=False if top else argparse.SUPPRESS)
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="hermes-minitoo")
-    p.add_argument("--state-dir", type=Path, default=default_state_dir())
-    p.add_argument("--verbose", action="store_true")
+    _common(p, top=True)
     sub = p.add_subparsers(dest="command", required=True)
-    run = sub.add_parser("run", help="Run MiniToo as a Hermes Gadget Linux device")
+
+    def add(name: str, **kwargs) -> argparse.ArgumentParser:
+        sp = sub.add_parser(name, **kwargs)
+        _common(sp, top=False)
+        return sp
+
+    run = add("run", help="Run MiniToo as a Hermes Gadget Linux device")
     run.add_argument("--config", type=Path, required=True)
-    sub.add_parser("status")
-    sub.add_parser("messages")
-    sub.add_parser("capabilities", help="Show implemented and research-only MiniToo capabilities")
-    send = sub.add_parser("send")
+    add("status")
+    add("messages")
+    add("capabilities", help="Show implemented and research-only MiniToo capabilities")
+    send = add("send")
     send.add_argument("text")
-    button = sub.add_parser("button")
+    button = add("button")
     button.add_argument("button", choices=("talk", "cancel", "up", "down"))
     button.add_argument("state", choices=("press", "release"))
-    sub.add_parser("audio-devices")
+    add("audio-devices")
     return p
 
 
-def main() -> int:
-    args = parser().parse_args()
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     try:
