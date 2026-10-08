@@ -9,8 +9,6 @@ SPEAK_WAV = "/home/bishop/.cache/minitoo-speak.wav"
 CONF = "/home/bishop/hermes-minitoo-gadget/config.json"
 FFMPEG = "/home/bishop/.hermes/tools/ffmpeg-9.0.1-linux-x64/bin/ffmpeg"
 IND = "/home/bishop/.cache/minitoo-indicator"
-ACK = "/home/bishop/.cache/minitoo-frame-ack"
-ACK_WAIT_S = 8.0
 
 
 def _audio(key):
@@ -117,28 +115,12 @@ def button(state):
     return r.returncode == 0
 
 
-def wait_frame_ack(since, timeout=ACK_WAIT_S):
-    """Ждёт, пока экран подтвердит доставку кадра после нажатия (файл ACK обновится)."""
-    end = time.time() + timeout
-    while time.time() < end:
-        try:
-            if float(open(ACK).read()) >= since:
-                return True
-        except (OSError, ValueError):
-            pass
-        time.sleep(0.1)
-    return False
-
-
 def record_once(st):
     """Одна запись: press (экран Listening уходит, пока канал стабилен) -> «Говорите» -> VAD/кнопка -> release."""
     st["phase"] = "starting"
-    t_press = time.time()
     if not button("press"):
         return
     try:
-        ok = wait_frame_ack(t_press)
-        log(f"экран Listening доставлен={ok} за {time.time() - t_press:.1f}с")
         try:
             r = subprocess.run(["pw-play", f"--target={_sink()}", SPEAK_WAV],
                                timeout=15, capture_output=True, text=True)

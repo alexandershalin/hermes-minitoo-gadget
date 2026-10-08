@@ -13,7 +13,6 @@ from .transport import RFCOMMTransport
 LOG = logging.getLogger(__name__)
 
 INDICATOR_FILE = os.path.expanduser("~/.cache/minitoo-indicator")
-ACK_FILE = os.path.expanduser("~/.cache/minitoo-frame-ack")
 REC_COLOR = (220, 30, 30)
 REC_MAX_SECONDS = 60.0  # защита от «залипшего» красного экрана
 DONE_COLOR = (30, 200, 60)
@@ -111,11 +110,6 @@ class MiniTooDisplay:
             while True:
                 try:
                     self.transport.send_rgb888(rgb)
-                    try:
-                        with open(ACK_FILE, "w") as f:
-                            f.write(str(time.time()))
-                    except OSError:
-                        pass
                     if attempt:
                         LOG.info("MiniToo display recovered after %d retries (%.1fs)",
                                  attempt, time.monotonic() - started)
