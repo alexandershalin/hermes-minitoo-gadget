@@ -100,15 +100,12 @@ def _profile():
 
 
 def set_ind(state):
-    """Индикатор для экрана: rec:<ts> (красный, живёт 60 с) / done:<ts> (зелёный, 3 с) / нет файла."""
+    """Индикатор на экране отключён (по просьбе Саши); только чистим старый файл."""
     try:
-        if state is None:
-            if os.path.exists(IND):
-                os.remove(IND)
-        else:
-            open(IND, "w").write(f"{state}:{time.time()}")
-    except OSError as exc:
-        log(f"индикатор: {exc!r}")
+        if os.path.exists(IND):
+            os.remove(IND)
+    except OSError:
+        pass
 
 
 def button(state):
