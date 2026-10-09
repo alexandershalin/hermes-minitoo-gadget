@@ -38,6 +38,8 @@ hermes_minitoo/config.py его принимает (со старым config.py 
   preroll_wait_sco    bool            0        после press до 4 с ждать SCO/eSCO к колонке, потом
                                                «Говорите» (пара к minitoo.listen_preroll)
   speak_prompt        bool            1        0: не играть «Говорите» (экран Listening уже виден)
+  scroll_keys         bool            0        1: джойстик колонки в idle = кнопки up/down Gadget
+                                               (последний ответ); в записи не используется
   silence_s           с               1.5      тишина после речи -> стоп
   nospeech_s          с               12       речи нет столько -> стоп
   max_s               с               30       предел записи
@@ -82,6 +84,7 @@ import types
 from pathlib import Path
 
 KEYS = {164, 200, 201, 119, 207}  # PLAYPAUSE, PLAYCD, PAUSECD, PAUSE, PLAY
+SCROLL_KEYS = {165: "up", 163: "down"}  # джойстик колонки (PREVIOUSSONG/NEXTSONG) -> up/down Gadget
 MAX_REC_S = 30
 DEBOUNCE_S = 1.0
 EVENT = struct.Struct("llHHi")  # struct input_event: 24 байта на x86_64
@@ -122,6 +125,7 @@ OPTIONS = {
     "hfp_keys_start": (bool, False),
     "preroll_wait_sco": (bool, False),
     "speak_prompt": (bool, True),
+    "scroll_keys": (bool, False),
     "silence_s": (float, 1.5),
     "nospeech_s": (float, 12.0),
     "max_s": (float, float(MAX_REC_S)),
@@ -934,6 +938,20 @@ def wp_log_level_keeper():
 
 # --- главный цикл ---------------------------------------------------------------------------
 
+def scroll(st, which):
+    """Джойстик в idle -> короткое нажатие up/down Gadget (в фоне, чтобы не блокировать чтение)."""
+    with LOCK:
+        if st["phase"] != "idle":
+            return "scroll игнор: не idle"
+
+    def _tap():
+        if button("press", which):
+            button("release", which)
+
+    threading.Thread(target=_tap, daemon=True).start()
+    return f"scroll {which}"
+
+
 def handle_events(st, data):
     for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
         sec, usec, typ, code, val = EVENT.unpack_from(data, i)
@@ -943,6 +961,8 @@ def handle_events(st, data):
         note = ""
         if val == 1 and code in KEYS:
             note = on_press(st)
+        elif val == 1 and code in SCROLL_KEYS and cfg().scroll_keys:
+            note = scroll(st, SCROLL_KEYS[code])
         log(f"key code={code} val={val} phase={st['phase']} lag={lag:.2f}с {note}")
 
 
