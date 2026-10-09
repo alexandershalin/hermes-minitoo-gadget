@@ -38,7 +38,7 @@ hermes_minitoo/config.py его принимает (со старым config.py 
   preroll_wait_sco    bool            0        после press до 4 с ждать SCO/eSCO к колонке, потом
                                                «Говорите» (пара к minitoo.listen_preroll)
   speak_prompt        bool            1        0: не играть «Говорите» (экран Listening уже виден)
-  scroll_keys         bool            0        1: джойстик колонки в idle = кнопки up/down Gadget
+  scroll_keys         bool            0        1: джойстик в idle: влево = cancel, вправо = up Gadget
                                                (последний ответ); в записи не используется
   silence_s           с               1.5      тишина после речи -> стоп
   nospeech_s          с               12       речи нет столько -> стоп
@@ -84,7 +84,7 @@ import types
 from pathlib import Path
 
 KEYS = {164, 200, 201, 119, 207}  # PLAYPAUSE, PLAYCD, PAUSECD, PAUSE, PLAY
-SCROLL_KEYS = {165: "up", 163: "down"}  # джойстик колонки (PREVIOUSSONG/NEXTSONG) -> up/down Gadget
+SCROLL_KEYS = {165: "cancel", 163: "up"}  # джойстик колонки: влево -> CANCEL, вправо -> UP (последний ответ)
 MAX_REC_S = 30
 DEBOUNCE_S = 1.0
 EVENT = struct.Struct("llHHi")  # struct input_event: 24 байта на x86_64
@@ -939,7 +939,7 @@ def wp_log_level_keeper():
 # --- главный цикл ---------------------------------------------------------------------------
 
 def scroll(st, which):
-    """Джойстик в idle -> короткое нажатие up/down Gadget (в фоне, чтобы не блокировать чтение)."""
+    """Джойстик в idle -> короткое нажатие cancel/up Gadget (в фоне, чтобы не блокировать чтение)."""
     with LOCK:
         if st["phase"] != "idle":
             return "scroll игнор: не idle"
