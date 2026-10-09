@@ -1,0 +1,25 @@
+# 62-minitoo-cvsd.conf.disabled — ЭКСПЕРИМЕНТ, выключен суффиксом .disabled.
+# Принудительно узкополосный CVSD (8 кГц) вместо mSBC (16 кГц) для микрофона по HFP.
+#
+# Зачем: Intel 8087:0a2a (Stone Peak, комбо-карта 7265/3165) ядро помечает как адаптер
+# без wideband speech, но PipeWire решает про mSBC по LMP-битам и может его включить.
+# mSBC на таком адаптере — вероятная причина «hci0: corrupted SCO packet», мусора в первые
+# секунды записи (HANDOFF §8.3) и нестабильного SCO.
+# Включать, только если диагностика показала mSBC. Во время записи:
+#   pw-dump | grep -oE '"api.bluez5.(codec|profile)": "[^"]+"' | sort | uniq -c
+# (или scripts/diag/bt-health.sh). msbc — повод попробовать; cvsd — файл не нужен.
+#
+# ВНИМАНИЕ: это свойство монитора, оно действует на ВСЕ Bluetooth-гарнитуры этого компьютера.
+# Цена: микрофон 8 кГц, распознавание речи может стать чуть хуже. Колонке ничего нового
+# не шлётся: PipeWire просто не предложит ей mSBC при согласовании кодека.
+#
+# Установка (без root):
+#   cp ~/hermes-minitoo-gadget/scripts/wireplumber/62-minitoo-cvsd.conf.disabled \
+#      ~/.config/wireplumber/wireplumber.conf.d/62-minitoo-cvsd.conf
+#   systemctl --user restart wireplumber      # затем переподключить колонку
+# Проверка: во время записи codec = cvsd; число «corrupted SCO packet» за запись
+# (scripts/diag/bt-health.sh) и уровень шума в начале записи до/после.
+# Откат: rm ~/.config/wireplumber/wireplumber.conf.d/62-minitoo-cvsd.conf && systemctl --user restart wireplumber
+monitor.bluez.properties = {
+  bluez5.enable-msbc = false
+}

@@ -1,0 +1,22 @@
+# /etc/udev/rules.d/91-bt-intel-0a2a-no-autosuspend.rules — держать Intel 8087:0a2a без autosuspend.
+#
+# Что: power/control=on для USB-устройства Bluetooth-адаптера Intel 8087:0a2a (BT-часть
+# комбо-карты Intel 7265/3165, на сервере это hci0).
+# Зачем: страховка к modprobe.d/btusb-no-autosuspend.conf. btusb включает autosuspend
+# в своём probe, поэтому правило на "add" USB-устройства может сработать РАНЬШЕ probe и
+# быть перезатёрто. Первое правило срабатывает на "bind" интерфейса драйвером btusb,
+# то есть ПОСЛЕ probe, и пишет в power/control родительского USB-устройства. Второе
+# покрывает загрузку системы (coldplug) и ручной `udevadm trigger --action=change`.
+# Если адаптер заменён, поправьте idVendor/idProduct (lsusb).
+#
+# Нужен root; ставит владелец сам (не через бота):
+#   sudo install -m 644 ~/hermes-minitoo-gadget/scripts/system/udev/91-bt-intel-0a2a-no-autosuspend.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger --action=change --subsystem-match=usb --attr-match=idVendor=8087
+# Проверка (ожидается control=on):
+#   for d in /sys/bus/usb/devices/*; do [ "$(cat $d/idVendor 2>/dev/null):$(cat $d/idProduct 2>/dev/null)" = 8087:0a2a ] && echo "$d control=$(cat $d/power/control)"; done
+# Откат:
+#   sudo rm /etc/udev/rules.d/91-bt-intel-0a2a-no-autosuspend.rules && sudo udevadm control --reload-rules
+#   (power/control вернётся к auto при следующем probe btusb или после перезагрузки)
+ACTION=="bind", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="btusb", ATTRS{idVendor}=="8087", ATTRS{idProduct}=="0a2a", RUN+="/bin/sh -c 'echo on > /sys%p/../power/control'"
+ACTION=="add|change", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="8087", ATTR{idProduct}=="0a2a", TEST=="power/control", ATTR{power/control}="on"

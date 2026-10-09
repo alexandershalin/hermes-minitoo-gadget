@@ -1,12 +1,35 @@
+# Play/Pause на колонке -> запись голоса в Hermes (scripts/minitoo-talk-key.py).
+# Пользовательский юнит (systemctl --user), пути через %h.
+#
+# ВНИМАНИЕ: установленная на сервере копия этого юнита запускает КОПИЮ скрипта
+# ~/.local/bin/minitoo-talk-key.py, а этот файл запускает скрипт прямо из репозитория.
+# Переключать только после сравнения копий:
+#   F="$(systemctl --user show -P FragmentPath minitoo-talk-key.service)"; echo "$F"
+#   diff -u ~/.local/bin/minitoo-talk-key.py ~/hermes-minitoo-gadget/scripts/minitoo-talk-key.py
+#   diff -u "$F" ~/hermes-minitoo-gadget/scripts/systemd/minitoo-talk-key.service
+# Если отличия скрипта понятны и нужны (или их нет):
+#   cp "$F" "$F.bak" && install -m 644 ~/hermes-minitoo-gadget/scripts/systemd/minitoo-talk-key.service "$F"
+#   systemctl --user daemon-reload && systemctl --user restart minitoo-talk-key
+# Если FragmentPath уже указывает в репозиторий (юнит подключён через systemctl --user link),
+# копировать не нужно: только daemon-reload и restart.
+# Откат: mv "$F.bak" "$F" && systemctl --user daemon-reload && systemctl --user restart minitoo-talk-key
+#
+# Изменения против прежней версии: скрипт из репозитория через python3 -I (без
+# PYTHONPATH/user site), Wants/After=wireplumber.service, TimeoutStopSec=30.
+# Настройки самого скрипта — в его docstring; задавать их лучше drop-in'ом:
+#   systemctl --user edit minitoo-talk-key   ->   [Service] Environment=ИМЯ=значение
 [Unit]
 Description=MiniToo Play/Pause -> Hermes talk toggle
-After=hermes-minitoo.service pipewire.service
-Wants=hermes-minitoo.service
+After=hermes-minitoo.service pipewire.service wireplumber.service
+Wants=hermes-minitoo.service wireplumber.service
 
 [Service]
-ExecStart=/usr/bin/python3 /home/bishop/.local/bin/minitoo-talk-key.py
+ExecStart=/usr/bin/python3 -I %h/hermes-minitoo-gadget/scripts/minitoo-talk-key.py
 Restart=always
 RestartSec=3
+# Сколько ждать выхода после SIGTERM (например, чтобы скрипт успел закончить запись
+# и отпустить talk), прежде чем systemd пошлёт SIGKILL.
+TimeoutStopSec=30
 
 [Install]
 WantedBy=default.target

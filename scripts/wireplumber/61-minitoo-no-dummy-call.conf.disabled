@@ -1,0 +1,51 @@
+# 61-minitoo-no-dummy-call.conf.disabled — ЭКСПЕРИМЕНТ, выключен суффиксом .disabled
+# (WirePlumber читает из wireplumber.conf.d только файлы *.conf).
+#
+# Гипотеза (HANDOFF §5.1/§5.3): при каждом открытии SCO (запись с микрофона колонки)
+# PipeWire сообщает колонке фиктивный «звонок идёт» (+CIEV: 2,1), а при закрытии —
+# «звонок закончен» (+CIEV: 2,0). Колонка, считая звонок активным, превращает Play/Pause
+# в AT+CHUP («положить трубку»), а кнопки громкости — в AT+VGS, вместо AVRCP; поэтому
+# во время записи в /dev/input нет нажатий. Так ведёт себя открытый SDK JieLi
+# (bt_key_fun.c); прошивка Divoom закрыта, на железе не проверено. Слабая гипотеза
+# сверху: без «звонка» колонка, возможно, меньше «замолкает» и по SPP (экран, §5.2).
+# Свойство bluez5.disable-dummy-call = true убирает этот фиктивный звонок.
+#
+# Риски:
+#   * часть гарнитур без звонка закрывает SCO по таймауту — запись может обрываться;
+#   * в аналоге из SDK JieLi без звонка отбрасываются первые ~120 eSCO-пакетов — начало
+#     записи (и «Говорите») может обрезаться сильнее (§5.6);
+#   * кнопки +/- во время записи перестанут приходить как AT+VGS (громкость).
+#
+# Правило действует ТОЛЬКО на карту MiniToo: device.name = "~bluez_card.B1_21_81_.*"
+# (регулярное выражение по префиксу адреса, двоеточия в имени карты заменены на "_").
+# Лучше вписать полный адрес своей колонки, например "bluez_card.B1_21_81_A0_78_53"
+# (имя видно в `wpctl status` и pw-dump), и поправить, если адрес колонки сменится.
+#
+# Сначала — без перезапуска и без этого файла, только пока колонка простаивает (НЕ во время
+# записи: если выключить звонок посреди записи, PipeWire не пошлёт «+CIEV: 2,0» в конце):
+#   wpctl status | grep -i -A2 minitoo        # id устройства (Devices: NN. Divoom MiniToo...)
+#   pw-cli set-param NN Props '{ params = [ "bluez5.disable-dummy-call" true ] }'
+#   pw-dump NN | grep -A1 dummy-call          # проверка
+#   ... одна запись с нажатиями Play/Pause (journalctl --user -u minitoo-talk-key -f) ...
+#   pw-cli set-param NN Props '{ params = [ "bluez5.disable-dummy-call" false ] }'   # вернуть
+# id устройства меняется при каждом переподключении колонки.
+#
+# Если помогло — постоянно (без root):
+#   cp ~/hermes-minitoo-gadget/scripts/wireplumber/61-minitoo-no-dummy-call.conf.disabled \
+#      ~/.config/wireplumber/wireplumber.conf.d/61-minitoo-no-dummy-call.conf
+#   systemctl --user restart wireplumber      # затем переподключить колонку
+# Откат: rm ~/.config/wireplumber/wireplumber.conf.d/61-minitoo-no-dummy-call.conf && systemctl --user restart wireplumber
+monitor.bluez.rules = [
+  {
+    matches = [
+      {
+        device.name = "~bluez_card.B1_21_81_.*"
+      }
+    ]
+    actions = {
+      update-props = {
+        bluez5.disable-dummy-call = true
+      }
+    }
+  }
+]

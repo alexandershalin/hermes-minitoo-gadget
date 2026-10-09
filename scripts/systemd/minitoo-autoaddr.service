@@ -1,9 +1,36 @@
+# Сторож BT-адреса MiniToo (scripts/minitoo-autoaddr.py): перепаривает колонку при смене
+# адреса, правит config.json и перезапускает hermes-minitoo.
+# Пользовательский юнит (systemctl --user), пути через %h.
+#
+# ВНИМАНИЕ: установленная на сервере копия этого юнита запускает КОПИЮ скрипта
+# ~/.local/bin/minitoo-autoaddr.py, а этот файл запускает скрипт прямо из репозитория.
+# Переключать только после сравнения копий:
+#   F="$(systemctl --user show -P FragmentPath minitoo-autoaddr.service)"; echo "$F"
+#   diff -u ~/.local/bin/minitoo-autoaddr.py ~/hermes-minitoo-gadget/scripts/minitoo-autoaddr.py
+#   diff -u "$F" ~/hermes-minitoo-gadget/scripts/systemd/minitoo-autoaddr.service
+# Если отличия скрипта понятны и нужны (или их нет):
+#   cp "$F" "$F.bak" && install -m 644 ~/hermes-minitoo-gadget/scripts/systemd/minitoo-autoaddr.service "$F"
+#   systemctl --user daemon-reload && systemctl --user restart minitoo-autoaddr
+# Если FragmentPath уже указывает в репозиторий (юнит подключён через systemctl --user link),
+# копировать не нужно: только daemon-reload и restart.
+# Откат: mv "$F.bak" "$F" && systemctl --user daemon-reload && systemctl --user restart minitoo-autoaddr
+#
+# Без переменных ниже скрипт ведёт себя как прежде. Опции (все выключены, описание — в
+# docstring скрипта) лучше включать drop-in'ом, не правя этот файл:
+#   systemctl --user edit minitoo-autoaddr   ->   [Service] Environment=MINITOO_AUTOADDR_SAFE_SCAN=1
+# Звук этот сервис не использует, поэтому зависимости от wireplumber.service у него нет.
 [Unit]
 Description=MiniToo BT address watcher (re-pair on address change)
 After=hermes-minitoo.service
 
 [Service]
-ExecStart=/usr/bin/python3 /home/bishop/.local/bin/minitoo-autoaddr.py
+Environment=MINITOO_CONFIG=%h/hermes-minitoo-gadget/config.json
+#Environment=MINITOO_AUTOADDR_PREFIX=B1:21:81:
+#Environment=MINITOO_AUTOADDR_SAFE_SCAN=1
+#Environment=MINITOO_AUTOADDR_ACCEPT_UNPAIRED=1
+#Environment=MINITOO_AUTOADDR_IDENTIFY=1
+#Environment=MINITOO_AUTOADDR_ONESHOT=1
+ExecStart=/usr/bin/python3 -I %h/hermes-minitoo-gadget/scripts/minitoo-autoaddr.py
 Restart=always
 RestartSec=5
 

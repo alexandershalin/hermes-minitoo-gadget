@@ -1,0 +1,28 @@
+# /etc/udev/rules.d/70-minitoo-avrcp-acl.rules — НЕОБЯЗАТЕЛЬНО: право чтения кнопок MiniToo
+# одному пользователю вместо членства в группе input.
+#
+# Что: когда BlueZ создаёт устройство ввода AVRCP колонки (/dev/input/eventN,
+# имя "Divoom MiniToo-... (AVRCP)"), выдать ACL r-- пользователю USERNAME (setfacl).
+# Зачем: minitoo-talk-key читает Play/Pause из этого eventN. Группа input даёт чтение
+# ВСЕХ клавиатур и мышей; это правило — только колонки. TAG+="uaccess" не подходит:
+# он работает лишь для пользователя с активной сессией на seat, а у headless-сервера
+# с linger её нет.
+# Два правила: по имени и по DID (Bus=0005 Vendor=05d6 Product=000a, BlueZ копирует их в
+# устройство AVRCP; имя меняется -Audio/-App, а DID может быть ещё 0000 при самом первом
+# подключении). Под DID попадает и Tiivoo 2 (тот же VID/PID) — для чтения кнопок это безвредно.
+#
+# USERNAME в двух строках ниже нужно заменить на своё имя пользователя (команда ниже делает это).
+# Нужен root и пакет acl (/usr/bin/setfacl); ставит владелец сам (не через бота):
+#   sed "s/USERNAME/$USER/g" ~/hermes-minitoo-gadget/scripts/system/udev/70-minitoo-avrcp-acl.rules | sudo tee /etc/udev/rules.d/70-minitoo-avrcp-acl.rules >/dev/null
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger --action=change --subsystem-match=input    # или переподключить колонку
+# Проверка:
+#   grep -B1 -A9 'Vendor=05d6' /proc/bus/input/devices      # номер eventN у "(AVRCP)"
+#   getfacl /dev/input/eventN                                 # ожидается user:<имя>:r--
+# После этого членство в группе input можно убрать, если оно было нужно только для колонки
+# (sudo gpasswd -d "$USER" input; действует после нового входа / перезапуска user-менеджера).
+# Откат:
+#   sudo rm /etc/udev/rules.d/70-minitoo-avrcp-acl.rules && sudo udevadm control --reload-rules
+#   (ACL пропадёт при следующем подключении колонки; сразу: sudo setfacl -x u:<имя> /dev/input/eventN)
+ACTION=="add|change", SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="*MiniToo*(AVRCP)", RUN+="/usr/bin/setfacl -m u:USERNAME:r $env{DEVNAME}"
+ACTION=="add|change", SUBSYSTEM=="input", KERNEL=="event*", ATTRS{id/bustype}=="0005", ATTRS{id/vendor}=="05d6", ATTRS{id/product}=="000a", RUN+="/usr/bin/setfacl -m u:USERNAME:r $env{DEVNAME}"

@@ -1,6 +1,26 @@
+# Основной сервис: Hermes Gadget (Linux client) + экран MiniToo по RFCOMM.
+# Пользовательский юнит (systemctl --user), пути через %h, привязки к имени пользователя нет.
+#
+# Установка или обновление установленной копии (сначала сравнить):
+#   F="$(systemctl --user show -P FragmentPath hermes-minitoo.service)"; echo "$F"
+#   diff -u "$F" ~/hermes-minitoo-gadget/scripts/systemd/hermes-minitoo.service
+#   cp "$F" "$F.bak" && install -m 644 ~/hermes-minitoo-gadget/scripts/systemd/hermes-minitoo.service "$F"
+#   systemctl --user daemon-reload && systemctl --user restart hermes-minitoo
+# Если юнита ещё нет: install -D -m 644 <этот файл> ~/.config/systemd/user/hermes-minitoo.service,
+# затем systemctl --user daemon-reload && systemctl --user enable --now hermes-minitoo.
+# Откат: mv "$F.bak" "$F" && systemctl --user daemon-reload && systemctl --user restart hermes-minitoo
+#
+# Изменения против прежней версии:
+# - StartLimitIntervalSec=0 перенесён из [Service] в [Unit]: в [Service] systemd его
+#   не понимает и пропускает с предупреждением. Теперь он действительно отключает лимит
+#   частоты перезапусков; с RestartSec=10 лимит по умолчанию (5 запусков за 10 с) и раньше
+#   не мог сработать, так что на практике поведение то же.
+# - Wants=wireplumber.service: звук колонки (A2DP/HFP) идёт через WirePlumber.
 [Unit]
 Description=Hermes MiniToo Gadget (Linux client + Bluetooth display)
 After=hermes-gateway.service pipewire.service wireplumber.service
+Wants=wireplumber.service
+StartLimitIntervalSec=0
 
 [Service]
 WorkingDirectory=%h/hermes-minitoo-gadget
@@ -9,7 +29,6 @@ Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=%h/hermes-minitoo-gadget/.venv/bin/hermes-minitoo run --config %h/hermes-minitoo-gadget/config.json
 Restart=always
 RestartSec=10
-StartLimitIntervalSec=0
 
 [Install]
 WantedBy=default.target
