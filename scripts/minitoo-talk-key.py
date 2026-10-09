@@ -45,6 +45,8 @@ hermes_minitoo/config.py его принимает (со старым config.py 
   vad_calib_s         с               0.8      калибровка уровня шума
   vad_floor           RMS             250      минимальный порог
   vad_mult            ×               3        порог = vad_mult × уровень шума
+  vad_ceiling         RMS             0        потолок порога (0 = выкл.); речь в первые 0,8 с
+                                               иначе завышает порог. Не ниже vad_floor
   vad_adaptive        bool            0        скользящий уровень шума (10-й перцентиль за 3 с,
                                                рост ≤ 2 % за блок); речь — серия громких блоков
                                                после прогрева и калибровки; серия, начатая ещё
@@ -127,6 +129,7 @@ OPTIONS = {
     "vad_floor": (float, 250.0),
     "vad_mult": (float, 3.0),
     "vad_adaptive": (bool, False),
+    "vad_ceiling": (float, 0.0),
 }
 _TRUE = {"1", "true", "yes", "on"}
 _FALSE = {"0", "false", "no", "off", ""}
@@ -472,11 +475,12 @@ class Vad:
     """
 
     def __init__(self, t0, silence_s=1.5, nospeech_s=12.0, warmup_s=0.0, calib_s=0.8,
-                 floor=250.0, mult=3.0, adaptive=False):
+                 floor=250.0, mult=3.0, adaptive=False, ceiling=0.0):
         self.t0, self.silence_s, self.nospeech_s = t0, silence_s, nospeech_s
         self.warmup = round(warmup_s * 10)
         self.calib = max(1, round(calib_s * 10))
         self.floor, self.mult, self.adaptive = floor, mult, adaptive
+        self.ceiling = max(ceiling, floor) if ceiling > 0 else 0.0
         self.seen = 0
         self.noise = []
         self.thr = None
@@ -497,7 +501,7 @@ class Vad:
             if self.thr is None:
                 self.noise.append(rms)
                 if len(self.noise) >= self.calib:
-                    self.thr = max(self.floor, self.mult * sorted(self.noise)[len(self.noise) // 2])
+                    self.thr = self._cap(max(self.floor, self.mult * sorted(self.noise)[len(self.noise) // 2]))
                     log(f"VAD порог={self.thr:.0f}")
                 return None
             if rms > self.thr:
@@ -509,6 +513,9 @@ class Vad:
             return "речи нет"
         return None
 
+    def _cap(self, thr):
+        return min(thr, self.ceiling) if self.ceiling else thr
+
     def _adaptive(self, rms, now):
         """Обновить уровень шума и речь; False, пока идёт калибровка."""
         self.times.append(now)
@@ -516,7 +523,7 @@ class Vad:
         window = sorted(self.levels[-ADAPTIVE_WINDOW:])
         level = window[len(window) * ADAPTIVE_PCT // 100]
         self.nf = level if self.nf is None else min(level, self.nf * (1 + ADAPTIVE_RISE))
-        self.thr = max(self.floor, self.mult * self.nf)
+        self.thr = self._cap(max(self.floor, self.mult * self.nf))
         if len(self.levels) == self.calib:
             log(f"VAD порог={self.thr:.0f} адаптивный")
         if len(self.levels) <= self.calib:
@@ -538,7 +545,7 @@ def vad_wait(stop_evt=None, max_s=None, silence_s=None, nospeech_s=None):
                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     t0 = time.time()
     vad = Vad(t0, silence_s, nospeech_s, c.vad_warmup_s, c.vad_calib_s, c.vad_floor, c.vad_mult,
-              c.vad_adaptive)
+              c.vad_adaptive, c.vad_ceiling)
     pcm = _Pcm(proc.stdout)
     trace = []
     try:

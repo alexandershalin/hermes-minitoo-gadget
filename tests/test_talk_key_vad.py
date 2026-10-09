@@ -248,7 +248,8 @@ def test_vad_settings_reach_the_detector(monkeypatch, tmp_path):
     K.CFG = K.load_settings({"HOME": str(tmp_path), "MINITOO_SILENCE_S": "2.5", "MINITOO_NOSPEECH_S": "8",
                              "MINITOO_VAD_WARMUP_S": "0.5", "MINITOO_VAD_CALIB_S": "1",
                              "MINITOO_VAD_FLOOR": "300", "MINITOO_VAD_MULT": "4",
-                             "MINITOO_VAD_ADAPTIVE": "1"}, {})
+                             "MINITOO_VAD_ADAPTIVE": "1",
+                             "MINITOO_VAD_CEILING": "700"}, {})
     path = tmp_path / "pcm"
     path.write_bytes(tone(100) * 3)
     monkeypatch.setattr(K, "subprocess", _fake_subprocess(FilePopen(path)))
@@ -261,7 +262,7 @@ def test_vad_settings_reach_the_detector(monkeypatch, tmp_path):
 
     monkeypatch.setattr(K, "Vad", Recorder)
     K.vad_wait(None)
-    assert seen["args"] == (2.5, 8.0, 0.5, 1.0, 300.0, 4.0, True)
+    assert seen["args"] == (2.5, 8.0, 0.5, 1.0, 300.0, 4.0, True, 700.0)
 
 
 # --- the detector on synthetic RMS sequences ------------------------------------------------
@@ -342,3 +343,22 @@ def test_last_run_end_rules():
     assert K._last_run_end([9, 9, 9, 9, 9, 9, 1], 5, 3) == 5  # ... long enough after it
     assert K._last_run_end([1, 1, 1, 1], 5, 3) is None
     assert K._last_run_end([], 5, 3) is None
+
+
+def test_ceiling_caps_threshold_when_speech_in_calibration(quiet):
+    loud = [2500] * 8 + [20] * 40 + [2500] * 5 + [20] * 30
+    vad = K.Vad(1000.0, ceiling=600.0)
+    for i in range(8):
+        vad.feed(2500, 1000.0 + 0.1 * (i + 1))
+    assert vad.thr == 600.0
+    why, _ = detect(loud, ceiling=600.0)
+    assert why == "тишина после речи"
+
+
+def test_ceiling_never_below_floor_and_off_by_default(quiet):
+    vad = K.Vad(1000.0, floor=250.0, ceiling=100.0)
+    assert vad.ceiling == 250.0
+    plain = K.Vad(1000.0)
+    for i in range(8):
+        plain.feed(2500, 1000.0 + 0.1 * (i + 1))
+    assert plain.thr == 7500.0
