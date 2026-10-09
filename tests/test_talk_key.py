@@ -663,13 +663,27 @@ def test_sco_check_imports_linkstate_from_the_repo(monkeypatch, tmp_path):
 
     probe = _Probe(up_after=0)
     link = types.SimpleNamespace(connections=list, sco_up=probe.sco_up)
-    fake = types.SimpleNamespace(LinkProbe=lambda: link)
+    seen = []
+    fake = types.SimpleNamespace(LinkProbe=lambda dev_id=0: (seen.append(dev_id), link)[1])
     monkeypatch.setattr(sys, "path", list(sys.path))
     monkeypatch.setitem(sys.modules, "hermes_minitoo.linkstate", fake)
     monkeypatch.setattr(hermes_minitoo, "linkstate", fake, raising=False)
     check, step = K._sco_check()
     assert check("AA:BB:CC:DD:EE:FF") is True and step == 0.05
     assert os.path.join(K.CFG.repo, "src") in sys.path
+    assert seen == [0]  # no minitoo.hci_dev in the config: hci0, as before
+
+
+def test_minitoo_hci_dev_comes_from_the_same_config_as_the_display(tmp_path):
+    path = _write_config(tmp_path)
+    assert K._minitoo_hci_dev() == 0
+    cfg = json.loads(path.read_text())
+    cfg["minitoo"]["hci_dev"] = 1
+    path.write_text(json.dumps(cfg), encoding="utf-8")
+    assert K._minitoo_hci_dev() == 1
+    cfg["minitoo"]["hci_dev"] = "1"  # invalid values fall back to hci0
+    path.write_text(json.dumps(cfg), encoding="utf-8")
+    assert K._minitoo_hci_dev() == 0
 
 
 def test_sco_check_falls_back_to_the_card_profile(monkeypatch, logs):

@@ -274,6 +274,15 @@ def _minitoo_address():
         return ""
 
 
+def _minitoo_hci_dev():
+    """Индекс адаптера (hciN) из minitoo.hci_dev; тот же ключ читает hfp_gate в display.py."""
+    try:
+        value = _config()["minitoo"].get("hci_dev", 0)
+        return value if type(value) is int and 0 <= value <= 31 else 0
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return 0
+
+
 def find_events(path=INPUT_DEVICES):
     """AVRCP-устройства колонки {"/dev/input/eventN": имя}, по возрастанию N.
 
@@ -694,7 +703,7 @@ def _sco_check():
             if src not in sys.path:
                 sys.path.insert(0, src)
             from hermes_minitoo import linkstate
-            probe = linkstate.LinkProbe()
+            probe = linkstate.LinkProbe(_minitoo_hci_dev())
             probe.connections()  # одно чтение таблицы соединений: есть ли доступ к hci0
             _LINK = probe
         except Exception as exc:
