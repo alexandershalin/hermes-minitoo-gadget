@@ -82,3 +82,16 @@ steady-hfp, address, usb-route; опции listen_preroll, preroll_wait_sco, hfp
   (порог 600/250/526) остановились по тишине через ~1,5 с после фразы.
 Вывод: рекомендуемые значения для этого железа — vad_ceiling=600; vad_warmup_s не нужен.
 Не проверено: обрезание начала фразы (сверить с распознанным текстом Гермеса).
+
+## 2026-10-09, autosuspend (п. 13) и перезагрузка: сделано
+
+Владелец поставил `scripts/system/modprobe.d/btusb-no-autosuspend.conf` и udev-правило 91,
+`update-initramfs -u`, перезагрузил сервер. После загрузки:
+- `/sys/module/btusb/parameters/enable_autosuspend` = N, `power/control` = on;
+- колонка B1:21:81:A0:78:53 подключилась сама, адрес не менялся; BlueZ теперь называет её
+  `MiniToo-App` (раньше `MiniToo-Audio`), `talk-key` кнопки находит (event11);
+- hermes-minitoo при старте 4 раза перезапустился (шлюз 127.0.0.1:8765 ещё не слушал), затем online;
+- живая запись 16:29: Play -> «Говорите» -> `AT+CHUP` -> стоп кнопкой, ответ получен;
+  экран: один `no 0x8B ACK` и backoff, восстановился за 2,4 с.
+Вывод: autosuspend закреплён навсегда. Гонка старта hermes-minitoo и шлюза безвредна (можно
+добавить `After=` на сервис шлюза, не критично).
