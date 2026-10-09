@@ -938,18 +938,32 @@ def wp_log_level_keeper():
 
 # --- главный цикл ---------------------------------------------------------------------------
 
+_LAST_CANCEL = [0.0]
+_TAP_LOCK = threading.Lock()  # тапы джойстика строго по очереди: release первого не обрывает удержание второго
+NEW_SESSION_WINDOW_S = 1.0  # второе нажатие влево за это время = новая сессия
+NEW_SESSION_HOLD_S = 2.1    # SDK: CANCEL удержан 2 с -> session.new
+
+
 def scroll(st, which):
     """Джойстик в idle -> короткое нажатие cancel/up Gadget (в фоне, чтобы не блокировать чтение)."""
     with LOCK:
         if st["phase"] != "idle":
             return "scroll игнор: не idle"
 
+    now = time.monotonic()
+    double = which == "cancel" and now - _LAST_CANCEL[0] <= NEW_SESSION_WINDOW_S
+    if which == "cancel":
+        _LAST_CANCEL[0] = 0.0 if double else now
+
     def _tap():
-        if button("press", which):
-            button("release", which)
+        with _TAP_LOCK:
+            if button("press", which):
+                if double:
+                    SHUTDOWN.wait(NEW_SESSION_HOLD_S)
+                button("release", which)
 
     threading.Thread(target=_tap, daemon=True).start()
-    return f"scroll {which}"
+    return f"scroll {which}" + (" (двойное: новая сессия)" if double else "")
 
 
 def handle_events(st, data):
