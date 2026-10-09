@@ -128,3 +128,15 @@ autoaddr сработал только в первом цикле (в эфире
 адреса 7C:8A:B5 и 82:CB:09 (следы прошлых смен).
 Вывод: MAC меняется только после сброса/обновления колонки, не при каждом включении.
 Идентификация по Vendor/Product в autoaddr не нужна.
+
+## 2026-10-09, перевод сервисов на код из ветки
+
+- `minitoo-autoaddr`: юнит из репозитория (`scripts/systemd/`), скрипт `-I` из репо, MINITOO_CONFIG через %h.
+  Старый юнит: `~/.config/systemd/user/minitoo-autoaddr.service.bak-main`. Копия в ~/.local/bin была равна main.
+- `hermes-minitoo`: запускался из репозитория, перезапущен на ветке `claude/inspiring-shannon-xl7a6h`
+  (новые опции display/transport выключены).
+- `minitoo-talk-key`: из репозитория с drop-in (hfp_keys, vad_adaptive, vad_ceiling=600).
+Наблюдение: после любого рестарта hermes-minitoo или быстрого выкл/вкл колонки адаптер hci0 может
+зависнуть (`Unable to disable scanning: -16`, `Device or resource busy` на RFCOMM, пропадает event11).
+Лечится `bluetoothctl disconnect` + 5 с + `connect`; после этого экран recovered, event11 возвращается.
+Откат юнитов: вернуть `.bak-main`, daemon-reload, restart.
