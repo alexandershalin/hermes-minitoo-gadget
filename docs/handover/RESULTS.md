@@ -95,3 +95,17 @@ steady-hfp, address, usb-route; опции listen_preroll, preroll_wait_sco, hfp
   экран: один `no 0x8B ACK` и backoff, восстановился за 2,4 с.
 Вывод: autosuspend закреплён навсегда. Гонка старта hermes-minitoo и шлюза безвредна (можно
 добавить `After=` на сервис шлюза, не критично).
+
+## 2026-10-09, кодек в записи (вопрос 4) и эксперимент 62-cvsd
+
+- Во время записи профиль `headset-head-unit` = HSP/HFP, **codec mSBC** (pw-dump: api.bluez5.codec=msbc).
+- Эксперимент `62-minitoo-cvsd.conf` (bluez5.enable-msbc=false): кодек стал CVSD, 3 записи
+  работали (2 стопа по AT+CHUP, 1 по тишине). `corrupted SCO packet`: 32 за 3 записи с CVSD
+  против 46 за 3 записи с mSBC, разница в пределах шума. Гипотеза «mSBC — причина» НЕ подтверждена.
+- Побочное: после рестарта WirePlumber экран завис на Listening >2,5 мин (цикл connected / no 0x8B
+  ACK, 30 failures in a row). Связь с CVSD не доказана, вероятнее рестарт WirePlumber.
+  Лечится рестартом hermes-minitoo.
+- Откат выполнен: фрагмент удалён, WirePlumber и hermes-minitoo перезапущены, mSBC снова доступен.
+  Живая запись после отката: старт, AT+CHUP, экран recovered after 2 retries (2,4 с).
+Вывод: оставить mSBC. Источник corrupted SCO — искать в адаптере/радио (RSSI -65…-85,
+Wi-Fi на той же карте Intel), а не в кодеке. Не проверялось: nmcli radio wifi off, USB-путь.
