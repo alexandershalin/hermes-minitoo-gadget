@@ -13,11 +13,29 @@ LOG = logging.getLogger(__name__)
 
 MAC_RE = re.compile(r"^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$")
 
-_ALLOWED = {"server", "name", "token", "audio", "minitoo"}
+# "talk_key" belongs to scripts/minitoo-talk-key.py: only its type is checked here and
+# it is never forwarded to Hermes Gadget.
+_ALLOWED = {"server", "name", "token", "audio", "minitoo", "talk_key"}
 _MINITOO_ALLOWED = {
     "address", "channel", "update_interval_ms", "chunk_delay_ms",
     "ready_timeout_ms", "reconnect_delay_ms", "max_payload_bytes",
+    "retry_window_s",
+    # opt-in display options (see display.py); absent means off / unchanged
+    "screen_change_immediate", "hfp_gate", "hfp_gate_settle_ms", "hfp_gate_post_mic_ms",
+    "hfp_gate_max_s", "hci_dev", "switch_ready_timeout_ms", "listen_preroll",
+    "listen_preroll_max_ms",
 }
+# Optional integers, validated only when present: key -> (low, high).
+_MINITOO_OPTIONAL_INT = {
+    "retry_window_s": (1, 3600),
+    "hfp_gate_settle_ms": (0, 10000),
+    "hfp_gate_post_mic_ms": (0, 30000),
+    "hfp_gate_max_s": (1, 600),
+    "hci_dev": (0, 31),
+    "switch_ready_timeout_ms": (100, 30000),
+    "listen_preroll_max_ms": (0, 5000),
+}
+_MINITOO_OPTIONAL_BOOL = ("screen_change_immediate", "hfp_gate", "listen_preroll")
 
 
 def _is_loopback(host: str) -> bool:
@@ -32,7 +50,8 @@ def _is_loopback(host: str) -> bool:
 def load_config(path: Path) -> dict:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict) or set(raw) - _ALLOWED:
-        raise ValueError("unknown config field; expected server, name, token, audio or minitoo")
+        raise ValueError("unknown config field; expected server, name, token, audio, minitoo "
+                         "or talk_key")
     if not isinstance(raw.get("server"), str):
         raise ValueError("server is required")
     url = urlsplit(raw["server"])
@@ -72,6 +91,12 @@ def load_config(path: Path) -> dict:
         value = mini.get(key, default)
         if type(value) is not int or not low <= value <= high:
             raise ValueError(f"minitoo.{key} must be an integer from {low} to {high}")
+    for key, (low, high) in _MINITOO_OPTIONAL_INT.items():
+        if key in mini and (type(mini[key]) is not int or not low <= mini[key] <= high):
+            raise ValueError(f"minitoo.{key} must be an integer from {low} to {high}")
+    for key in _MINITOO_OPTIONAL_BOOL:
+        if key in mini and not isinstance(mini[key], bool):
+            raise ValueError(f"minitoo.{key} must be true or false")
 
     audio = raw.get("audio", {})
     if not isinstance(audio, dict) or set(audio) - {"input", "output", "rate"}:
@@ -81,6 +106,8 @@ def load_config(path: Path) -> dict:
             raise ValueError(f"audio.{key} must be a string")
     if "rate" in audio and (type(audio["rate"]) is not int or not 8000 <= audio["rate"] <= 192000):
         raise ValueError("audio.rate must be an integer from 8000 to 192000")
+    if not isinstance(raw.get("talk_key", {}), dict):
+        raise ValueError("talk_key must be an object")
     return raw
 
 
