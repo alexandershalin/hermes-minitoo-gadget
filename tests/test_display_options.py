@@ -116,6 +116,18 @@ def test_gate_blocks_while_sco_is_up_and_for_the_settle_time():
     assert not gate.blocked() and gate.sco() is False
 
 
+def test_gate_blocks_while_sco_is_up_even_with_zero_settle():
+    # Regression: with settle_s below the 250 ms poll interval the gate used to let
+    # uploads through in the middle of an SCO link.
+    clock, probe = Clock(), Probe([ACL, SCO])
+    gate = D.HfpGate(ADDR.lower(), probe=probe, settle_s=0.0, post_mic_s=0.0,
+                     max_s=60.0, clock=clock)
+    assert gate.blocked() and gate.risky()
+    probe.links = [ACL]
+    clock.t += 0.3  # past the poll interval, SCO gone, settle is zero
+    assert not gate.blocked()
+
+
 def test_gate_ignores_other_devices_and_acl_only_links():
     clock = Clock()
     gate = _gate(Probe([ACL, Link("11:22:33:44:55:66", "SCO", 5, True)]), clock)

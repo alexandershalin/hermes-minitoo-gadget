@@ -110,10 +110,11 @@ class HfpGate:
             return self._sco if self._probe_ok else None
 
     def risky(self) -> bool:
-        self.sco()
+        sco_up = self.sco()
         with self._lock:
             now = self._clock()
             return (self._mic_open
+                    or bool(sco_up)
                     or now - self._sco_seen_at < self.settle_s
                     or now - self._mic_closed_at < self.post_mic_s)
 
