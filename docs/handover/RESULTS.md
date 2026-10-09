@@ -140,3 +140,9 @@ autoaddr сработал только в первом цикле (в эфире
 зависнуть (`Unable to disable scanning: -16`, `Device or resource busy` на RFCOMM, пропадает event11).
 Лечится `bluetoothctl disconnect` + 5 с + `connect`; после этого экран recovered, event11 возвращается.
 Откат юнитов: вернуть `.bak-main`, daemon-reload, restart.
+
+## 2026-10-09, Listening / Thinking
+- steady-hfp: пока открыт микрофон (HFP), колонка не отвечает на 0x8B ни разу за 60 с; экран вернулся через ~42 с после закрытия микрофона. Показ кадра внутри HFP невозможен.
+- listen_preroll=true (1500 мс): Listening показывается, микрофон открывается через ~370-430 мс.
+- hfp_gate=true (settle 1000, post_mic 2000): таймауты 8 с и переподключения ушли. Остановка 18:01:43 -> gate снят 18:01:47 -> ACK за 3,4 с -> Thinking ~7 с после остановки. Задержка определяется возвратом колонки в A2DP, не нашим кодом.
+- talk-key: опция speak_prompt (MINITOO_SPEAK_PROMPT=0 отключает «Говорите»).

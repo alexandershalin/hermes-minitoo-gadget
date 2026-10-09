@@ -37,6 +37,7 @@ hermes_minitoo/config.py его принимает (со старым config.py 
                                                8 с после конца прошлой)
   preroll_wait_sco    bool            0        после press до 4 с ждать SCO/eSCO к колонке, потом
                                                «Говорите» (пара к minitoo.listen_preroll)
+  speak_prompt        bool            1        0: не играть «Говорите» (экран Listening уже виден)
   silence_s           с               1.5      тишина после речи -> стоп
   nospeech_s          с               12       речи нет столько -> стоп
   max_s               с               30       предел записи
@@ -120,6 +121,7 @@ OPTIONS = {
     "hfp_keys": (bool, False),
     "hfp_keys_start": (bool, False),
     "preroll_wait_sco": (bool, False),
+    "speak_prompt": (bool, True),
     "silence_s": (float, 1.5),
     "nospeech_s": (float, 12.0),
     "max_s": (float, float(MAX_REC_S)),
@@ -403,6 +405,9 @@ def _retry_wav():
 
 
 def play_prompt():
+    if not cfg().speak_prompt:
+        log("подсказка «Говорите» отключена (speak_prompt=0)")
+        return
     wav = cfg().speak_wav
     if not os.path.exists(wav):
         log("подсказки «Говорите» нет, записываю без неё")
