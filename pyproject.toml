@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-minitoo-gadget"
-version = "0.2.0.dev0"
+version = "0.1.0"
 description = "Divoom MiniToo display/audio backend for Hermes Gadget SDK on Linux."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -40,3 +40,5 @@ select = ["E", "F", "I", "B", "UP"]
 "src/hermes_minitoo/transport.py" = ["UP041"]
 # Server helper scripts from main, kept byte-identical until they are reworked.
 "scripts/*.py" = ["E401", "E501", "E702", "I001"]
+# Standalone Hermes-side helpers (stdlib only, run as plain scripts).
+"hermes-side/*.py" = ["E401", "E501", "E702", "I001", "UP031"]

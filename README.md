@@ -117,13 +117,13 @@ Safe starting profile:
 
 The 2.5-second interval is intentionally conservative for the first hardware validation. Once measured on the actual Linux server, it can be tuned downward without changing the codec.
 
-## Handoff for reviewers
+## Known issues and decisions
 
-[HANDOFF.md](HANDOFF.md) — full project context, session history, unresolved problems (button not delivered during recording, unreliable screen frames) and source map. Start here.
+[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) — what was verified on hardware, what is not, and why things are built the way they are. Installing on another host: [docs/PORTABILITY.md](docs/PORTABILITY.md).
 
 ## Research archive
 
-This project is intended to grow beyond the first Hermes backend:
+Full project history, hardware logs and firmware research (`HANDOFF.md`, `docs/handover/`, `docs/research/`) live on the [`development`](../../tree/development) branch and the `research-archive-2026-10` tag. Protocol reference kept on `main`:
 
 - [Research index](research/README.md)
 - [Known MiniToo hacks](research/HACKS.md)

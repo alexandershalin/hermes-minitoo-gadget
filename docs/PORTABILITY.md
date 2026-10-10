@@ -80,7 +80,7 @@ tts:
 - **Адаптер Bluetooth.** Правило udev в `scripts/system/udev/91-bt-intel-0a2a-no-autosuspend.rules` написано под Intel `8087:0a2a`. Для другого адаптера нужны свои `idVendor` и `idProduct` из `lsusb`.
 - **Прокси STT.** Хост OpenRouter из РФ может быть недоступен напрямую. Прокси задаётся в `~/.config/hermes-minitoo/stt.env` (`OR_STT_PROXY=...`); по умолчанию соединение прямое.
 - **libportaudio2.** На целевой машине без неё юнит `hermes-minitoo` не запустится. Системная установка (`apt install libportaudio2`) решает вопрос. Строка `LD_LIBRARY_PATH=%h/.local/lib/portaudio-extract/...` в юните нужна только на хосте без прав на apt.
-- **Качество связи.** Сообщения `corrupted SCO packet` и зависания `hci0` зависят от адаптера и обсуждаются в `docs/handover/RESULTS.md`.
+- **Качество связи.** Сообщения `corrupted SCO packet` и зависания `hci0` зависят от адаптера и обсуждаются в `docs/KNOWN_ISSUES.md`.
 
 ## Тесты без железа
 
