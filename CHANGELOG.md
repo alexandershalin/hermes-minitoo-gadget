@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-10-10
+
+- Fix: `RFCOMMTransport.last_failure` started at `0.0`, so on a host with `time.monotonic()` < `reconnect_delay` (first minute after boot) the first `connect()` was refused with "backoff is active". Found by a flaky CI run on Python 3.14.
+
 ## 0.1.1 — 2026-10-10
 
 - `research/` removed from `main`; capability references now point to the `development` branch.
