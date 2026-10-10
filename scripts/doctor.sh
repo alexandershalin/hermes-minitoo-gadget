@@ -21,6 +21,8 @@ if [ -f "$REPO/config.json" ]; then
   case "$A" in ""|REAL_MAC_HERE) bad "minitoo.address не задан";; *) ok "address=$A";; esac
 else bad "нет config.json"; fi
 
+if "$REPO/.venv/bin/python" -c "from hermes_gadget.sim.native import load_library; load_library()" >/dev/null 2>&1; then ok "ядро SDK (libhgsim) загружается"; else bad "libhgsim не найдена: hermes-gadget build-sim в чекауте SDK (install.sh делает это сам)"; fi
+
 echo "Hermes и звук"
 SRV="$(python3 -c "import json;print(json.load(open('$REPO/config.json'))['server'])" 2>/dev/null)"
 PORT="$(printf '%s' "$SRV" | sed -E 's#.*:([0-9]+)/.*#\1#')"
