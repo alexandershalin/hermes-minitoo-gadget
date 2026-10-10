@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 — 2026-10-10
+
+- `hermes-gadget minitoo ...` next to `hermes-gadget linux ...` (same commands as `hermes-minitoo`, which stays as an alias). The package installs a `hermes-gadget` entry point that adds `minitoo` to the SDK parser and keeps all SDK commands.
+- systemd unit starts the service as `hermes-gadget minitoo run`.
+
 ## 0.1.2 — 2026-10-10
 
 - Fix: `RFCOMMTransport.last_failure` started at `0.0`, so on a host with `time.monotonic()` < `reconnect_delay` (first minute after boot) the first `connect()` was refused with "backoff is active". Found by a flaky CI run on Python 3.14.
