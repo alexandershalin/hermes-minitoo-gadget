@@ -37,6 +37,6 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 # Hardware-verified transport is intentionally left byte-for-byte as shipped.
-"src/hermes_minitoo/transport.py" = ["UP041", "B009"]
+"src/hermes_minitoo/transport.py" = ["UP041"]
 # Server helper scripts from main, kept byte-identical until they are reworked.
 "scripts/*.py" = ["E401", "E501", "E702", "I001"]
