@@ -3,7 +3,7 @@ import struct
 
 import pytest
 
-from hermes_minitoo import linkstate as L
+from hermes_minitoo.platforms.linux import linkstate as L
 
 ADDR = "B1:21:81:A0:78:53"
 

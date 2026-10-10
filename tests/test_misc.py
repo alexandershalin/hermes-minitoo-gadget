@@ -24,26 +24,26 @@ def test_version_is_a_string():
     assert isinstance(hermes_minitoo.__version__, str)
 
 
-def test_gadget_parser_keeps_sdk_commands_and_adds_minitoo():
-    from hermes_minitoo.cli import gadget_parser
-
-    p = gadget_parser()
-    assert p.parse_args(["linux", "status"]).command == "linux"
-    args = p.parse_args(["minitoo", "--state-dir", "/x", "button", "talk", "press"])
-    got = (args.command, args.minitoo_command, args.button, args.state)
-    assert got == ("minitoo", "button", "talk", "press")
-    assert args.state_dir == Path("/x")
-    assert callable(args.func)
-    assert p.parse_args(["minitoo", "run", "--config", "c.json"]).config == Path("c.json")
+def test_cli_mirrors_the_sdk_linux_client_commands():
+    group = next(a for a in parser()._actions if a.__class__.__name__ == "_SubParsersAction")
+    sdk = {"run", "audio-devices", "audio-check", "status", "messages", "send", "event", "button"}
+    assert sdk <= set(group.choices)
+    assert "capabilities" in group.choices
 
 
-def test_minitoo_subcommands_match_legacy_cli():
-    from hermes_minitoo.cli import gadget_parser
+def test_cli_parses_button_event_and_state_dir_in_either_position():
+    p = parser()
+    args = p.parse_args(["--state-dir", "/x", "button", "talk", "press"])
+    assert (args.button, args.state, args.state_dir) == ("talk", "press", Path("/x"))
+    args = p.parse_args(["event", "door.opened", "--data", "{}", "--notify", "--state-dir", "/y"])
+    assert (args.name, args.data, args.notify, args.state_dir) == ("door.opened", "{}", True, Path("/y"))
 
-    def commands(parser_):
-        group = next(a for a in parser_._actions if a.__class__.__name__ == "_SubParsersAction")
-        return group
 
-    legacy = set(commands(parser()).choices)
-    group = commands(gadget_parser()).choices["minitoo"]
-    assert legacy == set(commands(group).choices)
+def test_entry_points_name_the_new_command():
+    import tomllib
+
+    root = Path(__file__).resolve().parent.parent
+    scripts = tomllib.loads((root / "pyproject.toml").read_text())["project"]["scripts"]
+    assert scripts["hermes-gadget-minitoo"] == "hermes_minitoo.cli:main"
+    assert scripts["hermes-minitoo"] == scripts["hermes-gadget-minitoo"]
+    assert "hermes-gadget" not in scripts  # never shadow the SDK's own command

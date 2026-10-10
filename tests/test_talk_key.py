@@ -18,7 +18,7 @@ _sp.loader.exec_module(K)
 
 # origin/main 21af541 scripts/minitoo-talk-key.py: the hard-coded paths the defaults must reproduce
 OLD_PATHS = {
-    "bin": "/home/bishop/hermes-minitoo-gadget/.venv/bin/hermes-minitoo",
+    "bin": "/home/bishop/hermes-minitoo-gadget/.venv/bin/hermes-gadget-minitoo",
     "tts_python": "/home/bishop/.hermes/installs/20715197cc5be820/environments/"
                   "738223755d2649faa3439a3b8f7036ae/venv/bin/python",
     "tts_client": "/home/bishop/.local/bin/piper-tts-client.py",
@@ -135,7 +135,7 @@ def test_repo_and_config_come_from_env():
     s = K.load_settings({"HOME": "/h", "MINITOO_REPO": "~/src/gadget"}, {})
     assert s.repo == "/h/src/gadget"
     assert s.config == "/h/src/gadget/config.json"
-    assert s.bin == "/h/src/gadget/.venv/bin/hermes-minitoo"
+    assert s.bin == "/h/src/gadget/.venv/bin/hermes-gadget-minitoo"
     s = K.load_settings({"HOME": "/h", "MINITOO_CONFIG": "/etc/minitoo.json"}, {"config": "/x"})
     assert s.config == "/etc/minitoo.json"
 
@@ -230,7 +230,7 @@ def test_cli_gets_state_dir_only_when_overridden(monkeypatch, tmp_path):
 
 
 def test_cli_error_text_from_stdout_is_logged(monkeypatch, logs):
-    out = "hermes-minitoo: [Errno 2] No such file or directory\n"
+    out = "hermes-gadget-minitoo: [Errno 2] No such file or directory\n"
     monkeypatch.setattr(K.subprocess, "run", lambda *a, **k: _Result(1, stdout=out))
     assert K._button_cli("press") is False
     assert any("No such file" in line for line in logs)
@@ -659,15 +659,15 @@ def test_wait_sco_gives_up_and_honours_stop(tmp_path, logs):
 def test_sco_check_imports_linkstate_from_the_repo(monkeypatch, tmp_path):
     import types
 
-    import hermes_minitoo
+    import hermes_minitoo.platforms.linux
 
     probe = _Probe(up_after=0)
     link = types.SimpleNamespace(connections=list, sco_up=probe.sco_up)
     seen = []
     fake = types.SimpleNamespace(LinkProbe=lambda dev_id=0: (seen.append(dev_id), link)[1])
     monkeypatch.setattr(sys, "path", list(sys.path))
-    monkeypatch.setitem(sys.modules, "hermes_minitoo.linkstate", fake)
-    monkeypatch.setattr(hermes_minitoo, "linkstate", fake, raising=False)
+    monkeypatch.setitem(sys.modules, "hermes_minitoo.platforms.linux.linkstate", fake)
+    monkeypatch.setattr(hermes_minitoo.platforms.linux, "linkstate", fake, raising=False)
     check, step = K._sco_check()
     assert check("AA:BB:CC:DD:EE:FF") is True and step == 0.05
     assert os.path.join(K.CFG.repo, "src") in sys.path
@@ -687,11 +687,11 @@ def test_minitoo_hci_dev_comes_from_the_same_config_as_the_display(tmp_path):
 
 
 def test_sco_check_falls_back_to_the_card_profile(monkeypatch, logs):
-    import hermes_minitoo
+    import hermes_minitoo.platforms.linux
 
     monkeypatch.setattr(sys, "path", list(sys.path))
-    monkeypatch.setitem(sys.modules, "hermes_minitoo.linkstate", None)  # import fails
-    monkeypatch.delattr(hermes_minitoo, "linkstate", raising=False)
+    monkeypatch.setitem(sys.modules, "hermes_minitoo.platforms.linux.linkstate", None)  # import fails
+    monkeypatch.delattr(hermes_minitoo.platforms.linux, "linkstate", raising=False)
     profiles = iter(["a2dp-sink", "headset-head-unit"])
     monkeypatch.setattr(K, "_profile", lambda addr=None: next(profiles))
     check, step = K._sco_check()

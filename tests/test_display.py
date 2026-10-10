@@ -210,7 +210,7 @@ class _AckingSocket:
 
 
 def test_default_stack_puts_the_expected_bytes_on_the_wire(monkeypatch):
-    from hermes_minitoo import transport as T
+    from hermes_minitoo.platforms.linux import transport as T
     from hermes_minitoo.protocol import build_transfer
 
     sock = _AckingSocket()
@@ -224,11 +224,3 @@ def test_default_stack_puts_the_expected_bytes_on_the_wire(monkeypatch):
     rgb = D.rgb565le_to_rgb888(bytes([1]) * (160 * 128 * 2))
     transfer = build_transfer(bytes(range(256)) * 2 + rgb[:4])
     assert sock.written == [transfer.start, *transfer.chunks]
-
-
-def test_active_registry_follows_the_display(monkeypatch):
-    monkeypatch.setattr(D, "RFCOMMTransport", _FailingTransport)
-    d = D.MiniTooDisplay({"address": ADDR})
-    assert D.ACTIVE is d
-    d.close()
-    assert D.ACTIVE is None

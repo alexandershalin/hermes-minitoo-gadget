@@ -55,43 +55,52 @@ Still awaiting physical verification on this project's Linux host:
 - best update interval for interactive Hermes state changes;
 - reconnect behavior on the actual adapter.
 
-> **Command name.** This package installs its own `hermes-gadget` command: every SDK subcommand (`linux`, `sim`, ...) plus `minitoo`, so `hermes-gadget minitoo ...` sits next to `hermes-gadget linux ...`. The old `hermes-minitoo` command stays as an alias. If you later reinstall the SDK into the same venv, its plain `hermes-gadget` script overwrites ours; run `pip install -e . --no-deps` again or use `hermes-minitoo`.
+> **Client.** `hermes-gadget-minitoo` is a client for the Hermes Gadget SDK, a sibling of the SDK's own `hermes-gadget linux`: same structure (`client`, `control`, `audio`, `display`, `cli`), same commands, same config shape. It uses only the SDK's device core, WebSocket transport and pairing; the Linux client's code is not imported. It installs on the computer that runs Hermes. Iteration 1 supports Linux (BlueZ + PipeWire); the platform-specific code lives in `src/hermes_minitoo/platforms/linux/`. The old `hermes-minitoo` command stays as an alias for one release.
 
 ## Install
 
+Install it **on the computer that runs Hermes** (iteration 1: Linux with BlueZ and PipeWire/WirePlumber, the speaker within Bluetooth range of that computer).
+
 ```bash
 sudo apt update
-sudo apt install git python3-venv cmake build-essential libportaudio2 liblzo2-2 bluez
+sudo apt install git python3-venv cmake build-essential libportaudio2 liblzo2-2 bluez pipewire wireplumber pipewire-bin ffmpeg
 
 git clone https://github.com/alexandershalin/hermes-minitoo-gadget.git
 cd hermes-minitoo-gadget
-
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -e '.[dev]'
-
-hermes-gadget build-sim --test
-cp examples/config.example.json config.json
+./install.sh --address AA:BB:CC:DD:EE:FF      # the speaker's Bluetooth address
 ```
 
-Set the MiniToo Bluetooth address in `config.json`, then:
+`install.sh` is safe to re-run. It:
+
+1. clones the Hermes Gadget SDK into `.sdk/` at the pinned commit and builds its native core with CMake (a few minutes on a slow machine; `--sdk-dir DIR` reuses an existing SDK checkout);
+2. creates `.venv/` and installs both packages;
+3. writes `config.json` from `config.template.json` (it never overwrites an existing one);
+4. installs the user services `hermes-minitoo`, `minitoo-talk-key` and `minitoo-autoaddr` (`--no-services` skips them);
+5. runs `scripts/doctor.sh`, a read-only check of everything above.
+
+Options: `--server ws://HOST:8765/gadget` (default: the local Hermes), `--name`, `--with-system` (USB autosuspend rules, needs sudo).
+
+**Pair the speaker once** with `bluetoothctl` (`scan on`, `pair MAC`, `trust MAC`, `connect MAC`). Voice needs speech-to-text and text-to-speech on the Hermes side: `./hermes-side/install.sh` installs the clients and a local Piper TTS daemon (Russian and English); the `config.yaml` lines it prints go into Hermes. Details: [docs/PORTABILITY.md](docs/PORTABILITY.md).
+
+Start the services and approve the device:
 
 ```bash
-hermes-gadget minitoo run --config config.json
+systemctl --user enable --now hermes-minitoo minitoo-talk-key minitoo-autoaddr
+hermes gadget approve CODE                    # the code is shown by: hermes-gadget-minitoo status
+./scripts/doctor.sh
 ```
 
-In another terminal:
+Without systemd, run the client by hand (same commands as `hermes-gadget linux`):
 
 ```bash
-hermes-gadget minitoo status
-hermes-gadget minitoo send "Hello from MiniToo"
+.venv/bin/hermes-gadget-minitoo run --config config.json
+.venv/bin/hermes-gadget-minitoo status
+.venv/bin/hermes-gadget-minitoo send "Hello from MiniToo"
 ```
 
-Approve the ordinary Hermes Gadget pairing code on the Hermes host:
+Press Play/Pause on the speaker to talk (it stops by itself after a pause, or press again). Joystick while idle: left = cancel, left twice = new session, right = last reply.
 
-```bash
-hermes gadget approve CODE
-```
+For development: `.venv/bin/pytest -q` and `.venv/bin/ruff check .`; `docker build -f Dockerfile.test -t minitoo-test . && docker run --rm minitoo-test` runs the tests without any hardware.
 
 ## Configuration
 
@@ -130,7 +139,7 @@ Protocol notes, hardware logs and firmware research live on the [`development`](
 Machine-readable status:
 
 ```bash
-hermes-gadget minitoo capabilities
+hermes-gadget-minitoo capabilities
 ```
 
 ## Architecture

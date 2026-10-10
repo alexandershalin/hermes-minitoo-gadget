@@ -26,7 +26,7 @@ StartLimitIntervalSec=0
 WorkingDirectory=%h/hermes-minitoo-gadget
 Environment=LD_LIBRARY_PATH=%h/.local/lib/portaudio-extract/usr/lib/x86_64-linux-gnu
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=%h/hermes-minitoo-gadget/.venv/bin/hermes-gadget minitoo run --config %h/hermes-minitoo-gadget/config.json
+ExecStart=%h/hermes-minitoo-gadget/.venv/bin/hermes-gadget-minitoo run --config %h/hermes-minitoo-gadget/config.json
 Restart=always
 RestartSec=10
 

@@ -7,7 +7,7 @@ import pytest
 from test_display_sim import ADDR, Device, DeviceWithoutScreen, Sim, ok
 
 from hermes_minitoo import display as D
-from hermes_minitoo.linkstate import Link
+from hermes_minitoo.platforms.linux.linkstate import Link
 
 # ---- screen_change_immediate ----
 

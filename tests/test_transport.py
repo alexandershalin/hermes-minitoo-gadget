@@ -2,8 +2,8 @@ import socket
 
 import pytest
 
-from hermes_minitoo import transport
-from hermes_minitoo.transport import RFCOMMTransport, _open_rfcomm
+from hermes_minitoo.platforms.linux import transport
+from hermes_minitoo.platforms.linux.transport import RFCOMMTransport, _open_rfcomm
 
 
 def test_open_rfcomm_uses_native_socket(monkeypatch):

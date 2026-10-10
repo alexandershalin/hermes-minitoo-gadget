@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — 2026-10-10
+
+- **Own client, not an add-on.** `hermes-gadget-minitoo` is built like `hermes-gadget linux`: its own `client`, `control`, `audio`, `cli`; only the SDK's device core, WebSocket transport and pairing are imported. No monkey-patching of `hermes_gadget.linux` (the old `runtime.py` and the `ACTIVE` display registry are gone).
+- **New executable** `hermes-gadget-minitoo` (alias `hermes-minitoo` for one release). The `hermes-gadget` shadow script from 0.1.3 is removed.
+- Platform code moved to `hermes_minitoo/platforms/linux/` (transport, link table, lock).
+- Microphone/preroll hooks live in `audio.Audio`; `config.json` is read as is, no translation to the SDK's config.
+
 ## 0.1.3 — 2026-10-10
 
 - `hermes-gadget minitoo ...` next to `hermes-gadget linux ...` (same commands as `hermes-minitoo`, which stays as an alias). The package installs a `hermes-gadget` entry point that adds `minitoo` to the SDK parser and keeps all SDK commands.
