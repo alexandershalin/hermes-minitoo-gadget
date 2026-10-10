@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 — 2026-10-10
+
+- `research/` removed from `main`; capability references now point to the `development` branch.
+- CI matrix reduced to Python 3.13 and 3.14.
+- Joystick in recording checked on hardware: left (165) does not stop the recording; right and up send only `AT+CHUP`, indistinguishable from Play. `joystick_guard` is therefore useless and off by default (see `docs/KNOWN_ISSUES.md`).
+
 ## 0.1.0 — 2026-10-10
 
 First stable cut: everything verified on a real MiniToo.
@@ -12,4 +18,4 @@ First stable cut: everything verified on a real MiniToo.
 - Bilingual voice (ru/en): STT `auto`, language-based TTS voice, language hint for the model.
 - `install.sh`, `scripts/doctor.sh`, `hermes-side/` (STT client, Piper TTS daemon), `Dockerfile.test`.
 
-Not hardware-verified: `joystick_guard`, installers on a clean foreign host. See `docs/KNOWN_ISSUES.md`.
+Not hardware-verified: installers on a clean foreign host. See `docs/KNOWN_ISSUES.md`.
