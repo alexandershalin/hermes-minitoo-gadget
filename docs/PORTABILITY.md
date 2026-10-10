@@ -12,6 +12,12 @@
 
 Как у соседей: официальный Linux-клиент SDK (`hermes-gadget-sdk/linux`) тоже ставится через `install.sh` и systemd-сервис, не через Docker.
 
+## Как это связано с Hermes
+
+Клиент ставится **на том же компьютере, где работает Hermes**, по образцу `hermes-gadget linux`: это отдельный процесс, который подключается к плагину gadget по WebSocket (`"server": "ws://127.0.0.1:8765/gadget"` в `config.json`, при необходимости `token` и `wss://`). Колонка при этом должна быть в радиусе Bluetooth этого компьютера. Запуск на другой машине тоже возможен (поменять `server`), но не проверялся.
+
+Команды: `hermes-gadget minitoo run|status|messages|send|button|capabilities|audio-devices`. Старое имя `hermes-minitoo` работает как алиас.
+
 ## Что входит
 
 | Часть | Где | Куда ставится |

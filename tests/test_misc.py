@@ -22,3 +22,28 @@ def test_common_options_work_before_and_after_subcommand():
 
 def test_version_is_a_string():
     assert isinstance(hermes_minitoo.__version__, str)
+
+
+def test_gadget_parser_keeps_sdk_commands_and_adds_minitoo():
+    from hermes_minitoo.cli import gadget_parser
+
+    p = gadget_parser()
+    assert p.parse_args(["linux", "status"]).command == "linux"
+    args = p.parse_args(["minitoo", "--state-dir", "/x", "button", "talk", "press"])
+    got = (args.command, args.minitoo_command, args.button, args.state)
+    assert got == ("minitoo", "button", "talk", "press")
+    assert args.state_dir == Path("/x")
+    assert callable(args.func)
+    assert p.parse_args(["minitoo", "run", "--config", "c.json"]).config == Path("c.json")
+
+
+def test_minitoo_subcommands_match_legacy_cli():
+    from hermes_minitoo.cli import gadget_parser
+
+    def commands(parser_):
+        group = next(a for a in parser_._actions if a.__class__.__name__ == "_SubParsersAction")
+        return group
+
+    legacy = set(commands(parser()).choices)
+    group = commands(gadget_parser()).choices["minitoo"]
+    assert legacy == set(commands(group).choices)
