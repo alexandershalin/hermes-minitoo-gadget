@@ -33,8 +33,8 @@
 ## Установка
 
 ```bash
-git clone https://github.com/alexandershalin/hermes-minitoo-gadget.git
-cd hermes-minitoo-gadget
+git clone https://github.com/alexandershalin/hermes-gadget-minitoo.git
+cd hermes-gadget-minitoo
 git checkout claude/inspiring-shannon-xl7a6h   # пока ветка не влита в main
 sudo apt install python3-venv git liblzo2-2 libportaudio2 bluez pipewire wireplumber pipewire-bin ffmpeg
 ./install.sh --address AA:BB:CC:DD:EE:FF       # MAC колонки; без него позже сработает autoaddr
