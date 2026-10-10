@@ -7,7 +7,7 @@ Hermes Gadget SDK remains the device runtime. This repository contains only Mini
 MiniToo knowledge is split into:
 
 - runtime code under `src/hermes_minitoo/`;
-- preserved reverse-engineering evidence under `research/`.
+- reverse-engineering evidence, kept on the `development` branch.
 
 ## Integration seam
 

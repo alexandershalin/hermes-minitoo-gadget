@@ -1,31 +1,14 @@
-import re
 from pathlib import Path
 
 import hermes_minitoo
-from hermes_minitoo.capabilities import CAPABILITIES
+from hermes_minitoo.capabilities import CAPABILITIES, RESEARCH_URL
 from hermes_minitoo.cli import parser
 
-ROOT = Path(__file__).resolve().parent.parent
 
-
-def _slug(heading: str) -> str:
-    text = re.sub(r"[^\w\s-]", "", heading.strip().lower())
-    return re.sub(r"\s", "-", text)
-
-
-def test_capability_references_point_to_existing_anchors():
-    anchors: dict[str, set[str]] = {}
+def test_capability_references_point_to_development_branch():
     for cap in CAPABILITIES.values():
-        path, _, anchor = cap.reference.partition("#")
-        file = ROOT / path
-        assert file.is_file(), cap.reference
-        if anchor:
-            if path not in anchors:
-                anchors[path] = {
-                    _slug(m.group(1))
-                    for m in re.finditer(r"^#+\s+(.*)$", file.read_text(encoding="utf-8"), re.M)
-                }
-            assert anchor in anchors[path], cap.reference
+        assert cap.reference.startswith(RESEARCH_URL), cap.reference
+        assert cap.reference.split("#")[0].endswith(".md"), cap.reference
 
 
 def test_common_options_work_before_and_after_subcommand():

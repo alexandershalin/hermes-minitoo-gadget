@@ -9,4 +9,4 @@ def test_capability_registry_marks_native_path_implemented():
 
 def test_capabilities_are_json_friendly():
     data = capabilities_dict()
-    assert data["device.brightness"]["reference"].startswith("research/")
+    assert data["device.brightness"]["reference"].startswith("https://github.com/")
