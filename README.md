@@ -26,7 +26,7 @@ ordered 256-byte 0x8B chunks
 MiniToo LCD
 ```
 
-This replaces the original 128×128/Zstandard compatibility backend. The older path remains documented under `research/` but is no longer used at runtime.
+This replaces the original 128×128/Zstandard compatibility backend. The older path is documented on the `development` branch and is no longer used at runtime.
 
 The lossless path is based on the real-device-verified work in `sirnugget11/divoom-minitoo-dotnet`. Linux compression uses the system `liblzo2` through Python `ctypes`; every frame is decompressed locally and compared byte-for-byte before Bluetooth transmission.
 
@@ -117,19 +117,13 @@ Safe starting profile:
 
 The 2.5-second interval is intentionally conservative for the first hardware validation. Once measured on the actual Linux server, it can be tuned downward without changing the codec.
 
-## Handoff for reviewers
+## Known issues and decisions
 
-[HANDOFF.md](HANDOFF.md) — full project context, session history, unresolved problems (button not delivered during recording, unreliable screen frames) and source map. Start here.
+[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) — what was verified on hardware, what is not, and why things are built the way they are. Installing on another host: [docs/PORTABILITY.md](docs/PORTABILITY.md).
 
 ## Research archive
 
-This project is intended to grow beyond the first Hermes backend:
-
-- [Research index](research/README.md)
-- [Known MiniToo hacks](research/HACKS.md)
-- [Firmware / OTA / custom-code research](research/FIRMWARE.md)
-- [Source map](research/SOURCES.md)
-- [Firmware asset manifest placeholder](research/firmware/MANIFEST.md)
+Protocol notes, hardware logs and firmware research live on the [`development`](https://github.com/alexandershalin/hermes-minitoo-gadget/tree/development) branch (and the `research-archive-2026-10` tag). `main` carries only working code.
 
 Machine-readable status:
 
