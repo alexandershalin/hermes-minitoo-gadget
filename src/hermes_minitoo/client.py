@@ -92,7 +92,7 @@ class Client:
                 self, width=self.display.width, height=self.display.height, board=BOARD,
                 firmware=core_version, name=name, mic="input" in audio, speaker="output" in audio,
                 mic_rate=audio.get("rate", 16000), speaker_rate=audio.get("rate", 16000),
-                audio_host=self.audio, backlight=False, scroll_buttons=True,
+                audio_host=self.audio, backlight=False, scroll_buttons=True, library=library,
                 button_labels=("TALK", "CANCEL"), touch_screen=False, round_panel=False)
         except Exception:
             if self.audio:

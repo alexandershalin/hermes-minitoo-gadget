@@ -182,7 +182,10 @@ def watch(probe: ConnList, speaker: str | None, *, interval: float = 0.5, every:
 
 
 def main(argv: list[str] | None = None) -> int:
-    default_conf = os.environ.get("MINITOO_CONFIG") or os.path.expanduser(DEFAULT_CONFIG)
+    repo_conf = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                             "config.json")  # config.json of the repo this script lives in
+    default_conf = os.environ.get("MINITOO_CONFIG") or (
+        repo_conf if os.path.isfile(repo_conf) else os.path.expanduser(DEFAULT_CONFIG))
     p = argparse.ArgumentParser(description="Live ACL/SCO/eSCO link table via HCIGETCONNLIST (no root).")
     p.add_argument("--dev", type=int, default=0, help="номер адаптера N в hciN (по умолчанию 0)")
     p.add_argument("--interval", type=float, default=0.5, help="период опроса, с (0.5)")

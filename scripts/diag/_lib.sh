@@ -2,8 +2,15 @@
 # Общие функции для scripts/diag/*.sh. Подключается через «. _lib.sh», сам не запускается.
 # Ничего не меняет: только читает config.json и печатает.
 
-CONF="${MINITOO_CONFIG:-$HOME/hermes-minitoo-gadget/config.json}"
 DIAG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# config.json того репозитория, где лежит скрипт (каталог может называться как угодно);
+# если его там нет — прежнее место ~/hermes-minitoo-gadget/config.json.
+_REPO_DIR="$(cd "$DIAG_DIR/../.." && pwd)"
+if [ -z "${MINITOO_CONFIG:-}" ] && [ -f "$_REPO_DIR/config.json" ]; then
+    CONF="$_REPO_DIR/config.json"
+else
+    CONF="${MINITOO_CONFIG:-$HOME/hermes-minitoo-gadget/config.json}"
+fi
 DIAG_LOG_DIR="${MINITOO_DIAG_DIR:-$HOME/minitoo-diag}"
 
 section() { printf '\n===== %s =====\n' "$*"; }

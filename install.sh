@@ -89,6 +89,9 @@ if [ "$SERVICES" = 1 ]; then
   # опциональные настройки поведения — отдельным drop-in'ом, который не перетирается обновлением юнита
   D="$U/minitoo-talk-key.service.d"; mkdir -p "$D"
   [ -f "$D/10-options.conf" ] || install -m 644 "$REPO/scripts/systemd/minitoo-talk-key.options.conf" "$D/10-options.conf"
+  # talk-key ищет config.json и venv в MINITOO_REPO (по умолчанию ~/hermes-minitoo-gadget):
+  # указываем фактический каталог чекаута, иначе при другом имени каталога сервис не найдёт конфиг
+  printf '[Service]\nEnvironment="MINITOO_REPO=%s"\n' "$REPO" > "$D/00-repo.conf"
   systemctl --user daemon-reload
   loginctl enable-linger "$USER" 2>/dev/null || echo "не удалось включить linger: сервисы не стартуют без входа пользователя" >&2
   echo "Юниты установлены, но не запущены. Запуск: systemctl --user enable --now hermes-minitoo minitoo-talk-key minitoo-autoaddr"
