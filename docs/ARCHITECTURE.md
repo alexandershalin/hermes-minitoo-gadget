@@ -9,11 +9,20 @@ MiniToo knowledge is split into:
 - runtime code under `src/hermes_minitoo/`;
 - reverse-engineering evidence, kept on the `development` branch.
 
-## Integration seam
+## Structure
 
-Hermes Gadget `v0.2.0` constructs `hermes_gadget.linux.display.Display` lazily from the Linux `Client`. At startup, `hermes-minitoo` replaces that class with `MiniTooDisplay`, then runs the unmodified upstream Linux control/service loop.
+`hermes-gadget-minitoo` is a client for the Hermes Gadget SDK, built like the SDK's `hermes-gadget linux`:
 
-This is a compatibility shim, not a Hermes fork.
+| Module | Role |
+|---|---|
+| `cli.py` | `hermes-gadget-minitoo run/status/send/button/...` |
+| `control.py` | private Unix socket and the service loop |
+| `client.py` | device identity (`device.json`) and the single-threaded host of the SDK's device core |
+| `audio.py` | PortAudio streams on the MiniToo's Bluetooth devices, microphone/preroll signals for the display |
+| `display.py` | the core's 160×128 framebuffer, uploaded over RFCOMM |
+| `platforms/linux/` | BlueZ RFCOMM transport, HCI link table, state-directory lock |
+
+From the SDK it uses only the device core (`hermes_gadget.sim.native`), the WebSocket transport (`hermes_gadget.sim.transport`) and the pairing protocol inside the core. Nothing from `hermes_gadget.linux` is imported. This is a client, not a Hermes fork.
 
 ## Native display pipeline
 

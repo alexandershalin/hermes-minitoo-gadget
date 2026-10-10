@@ -14,8 +14,7 @@ ldconfig -p | grep -q liblzo2 && ok liblzo2 || bad "liblzo2 (apt install liblzo2
 ldconfig -p | grep -q libportaudio && ok libportaudio || warn "libportaudio2 не установлен в системе (см. docs/PORTABILITY.md)"
 
 echo "Проект"
-[ -x "$REPO/.venv/bin/hermes-minitoo" ] && ok ".venv + hermes-minitoo" || bad "нет .venv/bin/hermes-minitoo (запустите install.sh)"
-"$REPO/.venv/bin/hermes-gadget" minitoo --help >/dev/null 2>&1 && ok "hermes-gadget minitoo" || warn "hermes-gadget без подкоманды minitoo (SDK перезаписал скрипт? pip install -e . --no-deps)"
+[ -x "$REPO/.venv/bin/hermes-gadget-minitoo" ] && ok ".venv + hermes-gadget-minitoo" || bad "нет .venv/bin/hermes-gadget-minitoo (запустите install.sh)"
 if [ -f "$REPO/config.json" ]; then
   ok config.json
   A="$(python3 -c "import json;print(json.load(open('$REPO/config.json'))['minitoo']['address'])" 2>/dev/null)"

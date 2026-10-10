@@ -1,4 +1,4 @@
-"""Configuration validation and translation to Hermes Gadget Linux config."""
+"""Configuration validation for the MiniToo gadget client."""
 
 from __future__ import annotations
 
@@ -109,13 +109,3 @@ def load_config(path: Path) -> dict:
     if not isinstance(raw.get("talk_key", {}), dict):
         raise ValueError("talk_key must be an object")
     return raw
-
-
-def sdk_config(config: dict) -> dict:
-    out = {"server": config["server"], "name": config.get("name", "MiniToo Gadget")}
-    if "token" in config:
-        out["token"] = config["token"]
-    if config.get("audio"):
-        out["audio"] = dict(config["audio"])
-    out["display"] = dict(config["minitoo"])
-    return out

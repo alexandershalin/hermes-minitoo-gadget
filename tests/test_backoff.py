@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from hermes_minitoo.transport import RFCOMMTransport
+from hermes_minitoo.platforms.linux.transport import RFCOMMTransport
 
 
 def test_backoff_does_not_extend_itself():

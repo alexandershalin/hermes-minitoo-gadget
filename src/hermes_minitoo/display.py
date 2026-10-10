@@ -1,4 +1,4 @@
-"""Hermes Gadget Linux display adapter for a Divoom MiniToo.
+"""Display of the MiniToo gadget client: framebuffer -> LZO -> RFCOMM.
 
 Opt-in options (all absent by default; absent means the behaviour of the plain
 throttled, latest-frame-wins uploader below):
@@ -14,7 +14,7 @@ throttled, latest-frame-wins uploader below):
   ``switch_ready_timeout_ms`` is the ready-ACK timeout for uploads that happen while
   the gate still considers the link risky (that is, after ``hfp_gate_max_s`` released a
   long hold); it does nothing without ``hfp_gate``.
-- ``listen_preroll`` (+ ``listen_preroll_max_ms``): with the audio hooks from runtime.py,
+- ``listen_preroll`` (+ ``listen_preroll_max_ms``): with ``audio.Audio`` (which calls the hooks below),
   the real microphone opens only after the Listening frame was uploaded (or the cap
   expired), so the frame goes out before WirePlumber switches the speaker to HFP. Off by
   default: the owner asked to leave Listening as it is ("оставь как есть"). It delays
@@ -28,13 +28,11 @@ import threading
 import time
 
 from .codec import HEIGHT, WIDTH, rgb565le_to_rgb888
-from .linkstate import LinkProbe
-from .transport import RFCOMMTransport
+from .platforms.linux.linkstate import LinkProbe
+from .platforms.linux.transport import RFCOMMTransport
 
 LOG = logging.getLogger(__name__)
 
-# The display created last; the opt-in audio hooks in runtime.py talk to it.
-ACTIVE: MiniTooDisplay | None = None
 
 # Retry warnings: the first few failures in a row are logged, then one in this many,
 # so a switched-off speaker does not write a journal line every second.
@@ -140,10 +138,9 @@ class HfpGate:
 
 
 class MiniTooDisplay:
-    """Drop-in replacement for hermes_gadget.linux.display.Display."""
+    """The device core's framebuffer, uploaded to a Divoom MiniToo over RFCOMM."""
 
     def __init__(self, config: dict):
-        global ACTIVE
         self.width = WIDTH
         self.height = HEIGHT
         self.touch = False
@@ -205,7 +202,6 @@ class MiniTooDisplay:
         # changing when frames are retried during normal operation.
         self._stop = threading.Event()
         self._fail_streak = 0
-        ACTIVE = self
         self._worker = threading.Thread(target=self._run, name="minitoo-display", daemon=True)
         self._worker.start()
 
@@ -347,7 +343,7 @@ class MiniTooDisplay:
         sco = self._gate.sco()
         return " sco=" + ("?" if sco is None else "up" if sco else "down")
 
-    # ---- hooks for runtime.install_audio_hooks (opt-in) ----
+    # ---- hooks called by audio.Audio ----
 
     def note_mic(self, is_open: bool) -> None:
         """The Gadget microphone stream was really opened or closed."""
@@ -391,7 +387,6 @@ class MiniTooDisplay:
             self.listening_sent.set()
 
     def close(self) -> None:
-        global ACTIVE
         with self._condition:
             self._closed = True
             self._condition.notify_all()
@@ -407,5 +402,3 @@ class MiniTooDisplay:
         self.transport.close()
         if self._gate is not None:
             self._gate.close()
-        if ACTIVE is self:
-            ACTIVE = None

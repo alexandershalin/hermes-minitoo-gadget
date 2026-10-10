@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-minitoo-gadget"
-version = "0.1.3"
-description = "Divoom MiniToo display/audio backend for Hermes Gadget SDK on Linux."
+version = "0.2.0"
+description = "Hermes Gadget client for the Divoom MiniToo (iteration 1: Linux)."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -17,9 +17,8 @@ dependencies = [
 dev = ["pytest>=8,<10", "ruff>=0.6"]
 
 [project.scripts]
-# Superset of the SDK command: every SDK subcommand plus `minitoo` (see hermes_minitoo.cli).
-hermes-gadget = "hermes_minitoo.cli:gadget_main"
-# Legacy alias, existing services use it.
+hermes-gadget-minitoo = "hermes_minitoo.cli:main"
+# Alias of the same entry point, kept for one release (existing services and scripts use it).
 hermes-minitoo = "hermes_minitoo.cli:main"
 
 [tool.setuptools]
@@ -40,7 +39,7 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 # Hardware-verified transport is intentionally left byte-for-byte as shipped.
-"src/hermes_minitoo/transport.py" = ["UP041"]
+"src/hermes_minitoo/platforms/linux/transport.py" = ["UP041"]
 # Server helper scripts from main, kept byte-identical until they are reworked.
 "scripts/*.py" = ["E401", "E501", "E702", "I001"]
 # Standalone Hermes-side helpers (stdlib only, run as plain scripts).

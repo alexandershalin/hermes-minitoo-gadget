@@ -55,7 +55,7 @@ Still awaiting physical verification on this project's Linux host:
 - best update interval for interactive Hermes state changes;
 - reconnect behavior on the actual adapter.
 
-> **Command name.** This package installs its own `hermes-gadget` command: every SDK subcommand (`linux`, `sim`, ...) plus `minitoo`, so `hermes-gadget minitoo ...` sits next to `hermes-gadget linux ...`. The old `hermes-minitoo` command stays as an alias. If you later reinstall the SDK into the same venv, its plain `hermes-gadget` script overwrites ours; run `pip install -e . --no-deps` again or use `hermes-minitoo`.
+> **Client.** `hermes-gadget-minitoo` is a client for the Hermes Gadget SDK, a sibling of the SDK's own `hermes-gadget linux`: same structure (`client`, `control`, `audio`, `display`, `cli`), same commands, same config shape. It uses only the SDK's device core, WebSocket transport and pairing; the Linux client's code is not imported. It installs on the computer that runs Hermes. Iteration 1 supports Linux (BlueZ + PipeWire); the platform-specific code lives in `src/hermes_minitoo/platforms/linux/`. The old `hermes-minitoo` command stays as an alias for one release.
 
 ## Install
 
@@ -77,14 +77,14 @@ cp examples/config.example.json config.json
 Set the MiniToo Bluetooth address in `config.json`, then:
 
 ```bash
-hermes-gadget minitoo run --config config.json
+hermes-gadget-minitoo run --config config.json
 ```
 
 In another terminal:
 
 ```bash
-hermes-gadget minitoo status
-hermes-gadget minitoo send "Hello from MiniToo"
+hermes-gadget-minitoo status
+hermes-gadget-minitoo send "Hello from MiniToo"
 ```
 
 Approve the ordinary Hermes Gadget pairing code on the Hermes host:
@@ -130,7 +130,7 @@ Protocol notes, hardware logs and firmware research live on the [`development`](
 Machine-readable status:
 
 ```bash
-hermes-gadget minitoo capabilities
+hermes-gadget-minitoo capabilities
 ```
 
 ## Architecture

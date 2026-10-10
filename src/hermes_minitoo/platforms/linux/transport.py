@@ -7,8 +7,8 @@ import socket
 import threading
 import time
 
-from .codec import build_lossless_animation
-from .protocol import FrameParser, build_transfer, is_live_ready
+from ...codec import build_lossless_animation
+from ...protocol import FrameParser, build_transfer, is_live_ready
 
 LOG = logging.getLogger(__name__)
 

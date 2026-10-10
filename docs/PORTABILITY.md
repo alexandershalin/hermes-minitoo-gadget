@@ -14,9 +14,9 @@
 
 ## Как это связано с Hermes
 
-Клиент ставится **на том же компьютере, где работает Hermes**, по образцу `hermes-gadget linux`: это отдельный процесс, который подключается к плагину gadget по WebSocket (`"server": "ws://127.0.0.1:8765/gadget"` в `config.json`, при необходимости `token` и `wss://`). Колонка при этом должна быть в радиусе Bluetooth этого компьютера. Запуск на другой машине тоже возможен (поменять `server`), но не проверялся.
+Клиент ставится **на том же компьютере, где работает Hermes**, по образцу `hermes-gadget linux` (те же модули `client`, `control`, `audio`, `display`, `cli`; от SDK берутся только ядро устройства, WebSocket-транспорт и сопряжение): это отдельный процесс, который подключается к плагину gadget по WebSocket (`"server": "ws://127.0.0.1:8765/gadget"` в `config.json`, при необходимости `token` и `wss://`). Колонка при этом должна быть в радиусе Bluetooth этого компьютера. Запуск на другой машине тоже возможен (поменять `server`), но не проверялся.
 
-Команды: `hermes-gadget minitoo run|status|messages|send|button|capabilities|audio-devices`. Старое имя `hermes-minitoo` работает как алиас.
+Команды: `hermes-gadget-minitoo run|status|messages|send|event|button|audio-devices|audio-check|capabilities`. Это отдельный исполняемый файл, а не подкоманда `hermes-gadget` (у SDK нет хука для чужих подкоманд, а подмена его скрипта ломалась бы при переустановке SDK). Старое имя `hermes-minitoo` работает как алиас.
 
 ## Что входит
 
@@ -99,3 +99,7 @@ docker build -f Dockerfile.test -t minitoo-test . && docker run --rm minitoo-tes
 ## Что не проверено на чужой установке
 
 Скрипты `install.sh` и `hermes-side/install.sh` проверены только на синтаксис и на этой машине. Чистая установка на другом хосте пока не прогонялась. Первый, кто это сделает, пусть допишет сюда найденные расхождения.
+
+## Структура кода и другие платформы
+
+Общий слой не зависит от ОС: `codec.py`, `protocol.py`, `display.py`, `client.py`, `control.py`, `config.py`. Всё платформенное лежит в `src/hermes_minitoo/platforms/<ОС>/`. Сейчас есть только `linux/` (RFCOMM через BlueZ, таблица HCI-соединений, блокировка каталога состояния). Для macOS или Android нужен свой каталог с тем же набором: транспорт RFCOMM, источник событий кнопок, звук. Скрипты `scripts/` (кнопки, VAD, автопоиск адреса) пока тоже только для Linux.

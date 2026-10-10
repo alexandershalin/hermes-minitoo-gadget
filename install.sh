@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Установка hermes-minitoo-gadget на чужой хост с Hermes (пользовательский уровень, без root, кроме apt).
+# Установка hermes-gadget-minitoo на чужой хост с Hermes (пользовательский уровень, без root, кроме apt).
 #   ./install.sh [--address AA:BB:CC:DD:EE:FF] [--server ws://127.0.0.1:8765/gadget] [--no-services] [--with-system]
 # Повторный запуск безопасен: config.json, drop-in'ы и юниты не перетираются без бэкапа.
 set -euo pipefail

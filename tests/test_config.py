@@ -2,10 +2,10 @@ import json
 
 import pytest
 
-from hermes_minitoo.config import load_config, sdk_config
+from hermes_minitoo.config import load_config
 
 
-def test_config_translates_minitoo_to_sdk_display(tmp_path):
+def test_config_keeps_minitoo_and_audio_sections(tmp_path):
     path = tmp_path / "config.json"
     path.write_text(json.dumps({
         "server": "ws://127.0.0.1:8765/gadget",
@@ -18,9 +18,9 @@ def test_config_translates_minitoo_to_sdk_display(tmp_path):
         },
         "audio": {"output": "Divoom MiniToo", "rate": 48000},
     }))
-    cfg = sdk_config(load_config(path))
-    assert cfg["display"]["address"] == "AA:BB:CC:DD:EE:FF"
-    assert cfg["display"]["update_interval_ms"] == 2500
+    cfg = load_config(path)
+    assert cfg["minitoo"]["address"] == "AA:BB:CC:DD:EE:FF"
+    assert cfg["minitoo"]["update_interval_ms"] == 2500
     assert cfg["audio"]["rate"] == 48000
 
 
@@ -64,16 +64,15 @@ def test_warns_on_open_token_file_and_plain_ws(tmp_path, caplog):
     assert "unencrypted" in text and "chmod 600" in text
 
 
-def test_retry_window_is_accepted_and_reaches_the_display(tmp_path):
-    cfg = sdk_config(load_config(_write(tmp_path, minitoo={
-        "address": "AA:BB:CC:DD:EE:FF", "retry_window_s": 30})))
-    assert cfg["display"]["retry_window_s"] == 30
+def test_retry_window_is_accepted(tmp_path):
+    cfg = load_config(_write(tmp_path, minitoo={
+        "address": "AA:BB:CC:DD:EE:FF", "retry_window_s": 30}))
+    assert cfg["minitoo"]["retry_window_s"] == 30
 
 
-def test_talk_key_section_is_accepted_but_not_forwarded(tmp_path):
-    cfg = sdk_config(load_config(_write(tmp_path, talk_key={"vad_warmup_s": 0.5, "x": [1]})))
-    assert "talk_key" not in cfg
-    assert set(cfg) == {"server", "name", "display"}
+def test_talk_key_section_is_accepted(tmp_path):
+    cfg = load_config(_write(tmp_path, talk_key={"vad_warmup_s": 0.5, "x": [1]}))
+    assert cfg["talk_key"] == {"vad_warmup_s": 0.5, "x": [1]}
 
 
 @pytest.mark.parametrize("talk_key", [[], "on", 1, None])
@@ -90,15 +89,14 @@ OPTIONS = {
 }
 
 
-def test_all_opt_in_display_options_are_accepted_and_forwarded(tmp_path):
-    cfg = sdk_config(load_config(_write(tmp_path, minitoo={"address": "AA:BB:CC:DD:EE:FF",
-                                                            **OPTIONS})))
-    assert {k: cfg["display"][k] for k in OPTIONS} == OPTIONS
+def test_all_opt_in_display_options_are_accepted(tmp_path):
+    cfg = load_config(_write(tmp_path, minitoo={"address": "AA:BB:CC:DD:EE:FF", **OPTIONS}))
+    assert {k: cfg["minitoo"][k] for k in OPTIONS} == OPTIONS
 
 
 def test_absent_options_stay_absent(tmp_path):
-    cfg = sdk_config(load_config(_write(tmp_path)))
-    assert cfg["display"] == {"address": "AA:BB:CC:DD:EE:FF"}
+    cfg = load_config(_write(tmp_path))
+    assert cfg["minitoo"] == {"address": "AA:BB:CC:DD:EE:FF"}
 
 
 @pytest.mark.parametrize("key,value", [

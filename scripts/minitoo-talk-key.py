@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Play/Pause на колонке MiniToo (AVRCP) -> toggle записи голоса в Hermes.
 
-Поток: нажатие -> `hermes-minitoo button talk press` -> «Говорите!» (pw-play) -> pw-record + VAD
+Поток: нажатие -> `hermes-gadget-minitoo button talk press` -> «Говорите!» (pw-play) -> pw-record + VAD
 (стоп по тишине или повторным нажатием) -> `button talk release`.
 
 Только stdlib, запускается системным /usr/bin/python3. Без настроек всё, что уходит в Hermes
@@ -12,12 +12,12 @@ control.sock) после press и после VAD и «VAD rms(100мс)=[...]» �
 Настройки: переменная окружения MINITOO_<ИМЯ> > ключ <имя> раздела "talk_key" в config.json >
 умолчание. REPO и CONFIG — только из окружения. Настройки читаются один раз при старте (audio.* и
 minitoo.address, как и раньше, — при каждой записи). Раздел talk_key добавляйте, только когда
-hermes_minitoo/config.py его принимает (со старым config.py hermes-minitoo не запустится), до того — env.
+hermes_minitoo/config.py его принимает (со старым config.py hermes-gadget-minitoo не запустится), до того — env.
 
 Пути (умолчания = прежние жёсткие пути):
   MINITOO_REPO     ~/hermes-minitoo-gadget                     корень репозитория (только env)
   MINITOO_CONFIG   <repo>/config.json                          audio.*, minitoo.address (только env)
-  bin              <repo>/.venv/bin/hermes-minitoo             CLI для button talk press/release
+  bin              <repo>/.venv/bin/hermes-gadget-minitoo    CLI для button talk press/release
   state_dir        ${XDG_STATE_HOME:-~/.local/state}/hermes-minitoo-gadget   где control.sock
   speak_wav        ~/.cache/minitoo-speak.wav                  подсказка «Говорите»
   tts_python       ~/.hermes/installs/<хеш>/.../venv/bin/python   Python для TTS-клиента
@@ -174,7 +174,7 @@ def _default_paths(env):
         "repo": str(repo),
         "config": _expand(env.get("MINITOO_CONFIG") or str(repo / "config.json"), str(home)),
         "indicator": str(home / ".cache/minitoo-indicator"),
-        "bin": str(repo / ".venv/bin/hermes-minitoo"),
+        "bin": str(repo / ".venv/bin/hermes-gadget-minitoo"),
         "state_dir": str(state / "hermes-minitoo-gadget"),
         "speak_wav": str(home / ".cache/minitoo-speak.wav"),
         "tts_python": str(home / _TTS_PYTHON),
@@ -721,12 +721,12 @@ def _sco_check():
             src = os.path.join(cfg().repo, "src")
             if src not in sys.path:
                 sys.path.insert(0, src)
-            from hermes_minitoo import linkstate
+            from hermes_minitoo.platforms.linux import linkstate
             probe = linkstate.LinkProbe(_minitoo_hci_dev())
             probe.connections()  # одно чтение таблицы соединений: есть ли доступ к hci0
             _LINK = probe
         except Exception as exc:
-            log(f"preroll_wait_sco: hermes_minitoo.linkstate недоступен ({exc!r}), жду профиль "
+            log(f"preroll_wait_sco: hermes_minitoo.platforms.linux.linkstate недоступен ({exc!r}), жду профиль "
                 "headset-head-unit")
             _LINK = False
     if _LINK:
