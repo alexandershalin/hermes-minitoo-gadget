@@ -30,6 +30,10 @@ This replaces the original 128×128/Zstandard compatibility backend. The older p
 
 The lossless path is based on the real-device-verified work in `sirnugget11/divoom-minitoo-dotnet`. Linux compression uses the system `liblzo2` through Python `ctypes`; every frame is decompressed locally and compared byte-for-byte before Bluetooth transmission.
 
+## Установка на другой хост
+
+Быстрый путь: `./install.sh`, затем `./hermes-side/install.sh` и `./scripts/doctor.sh`. Подробности и ограничения: [docs/PORTABILITY.md](docs/PORTABILITY.md).
+
 ## Status
 
 Implemented:

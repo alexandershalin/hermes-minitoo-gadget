@@ -10,3 +10,7 @@ config.json
 minitoo.log
 minitoo.pid
 *.bak-*
+*.bak
+*.bak-*
+config.json.bak*
+minitoo.pid

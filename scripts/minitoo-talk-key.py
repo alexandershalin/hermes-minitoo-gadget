@@ -40,6 +40,8 @@ hermes_minitoo/config.py его принимает (со старым config.py 
   speak_prompt        bool            1        0: не играть «Говорите» (экран Listening уже виден)
   scroll_keys         bool            0        1: джойстик в idle: влево = cancel, вправо = up Gadget
                                                (последний ответ); в записи не используется
+  joystick_guard      bool            0        1: AT+CHUP в записи вскоре после джойстика (165/163) не
+                                               останавливает запись (это не Play)
   silence_s           с               1.5      тишина после речи -> стоп
   nospeech_s          с               12       речи нет столько -> стоп
   max_s               с               30       предел записи
@@ -126,6 +128,7 @@ OPTIONS = {
     "preroll_wait_sco": (bool, False),
     "speak_prompt": (bool, True),
     "scroll_keys": (bool, False),
+    "joystick_guard": (bool, False),
     "silence_s": (float, 1.5),
     "nospeech_s": (float, 12.0),
     "max_s": (float, float(MAX_REC_S)),
@@ -866,6 +869,10 @@ class HfpWatcher:
             return None
         self.last = (cmd, now)
         phase = self.st["phase"]
+        if (cmd == "AT+CHUP" and phase == "recording" and cfg().joystick_guard
+                and time.monotonic() - _LAST_JOY[0] <= JOY_GUARD_S):
+            log(f"hfp at={cmd} phase={phase} action=игнор: джойстик")
+            return "игнор: джойстик"
         action = on_press(self.st, source="hfp") if hfp_key(cmd) else "-"
         log(f"hfp at={cmd} phase={phase} action={action}")
         return action
@@ -939,6 +946,8 @@ def wp_log_level_keeper():
 # --- главный цикл ---------------------------------------------------------------------------
 
 _LAST_CANCEL = [0.0]
+_LAST_JOY = [-1e9]  # monotonic последнего события джойстика (любая фаза)
+JOY_GUARD_S = 4.0  # AT+CHUP в записи через столько с после джойстика — не Play, стоп не нужен
 _TAP_LOCK = threading.Lock()  # тапы джойстика строго по очереди: release первого не обрывает удержание второго
 NEW_SESSION_WINDOW_S = 1.0  # второе нажатие влево за это время = новая сессия
 NEW_SESSION_HOLD_S = 2.1    # SDK: CANCEL удержан 2 с -> session.new
@@ -973,6 +982,8 @@ def handle_events(st, data):
             continue
         lag = time.time() - (sec + usec / 1e6)  # задержка между событием ядра и нашим чтением
         note = ""
+        if val == 1 and code in SCROLL_KEYS:
+            _LAST_JOY[0] = time.monotonic()
         if val == 1 and code in KEYS:
             note = on_press(st)
         elif val == 1 and code in SCROLL_KEYS and cfg().scroll_keys:

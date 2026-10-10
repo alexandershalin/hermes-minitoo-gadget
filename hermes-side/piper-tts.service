@@ -1,0 +1,13 @@
+[Unit]
+Description=Piper TTS daemon (127.0.0.1:8770)
+After=pipewire.service
+
+[Service]
+ExecStart=%h/.hermes/hermes-agent/venv/bin/python %h/.local/bin/piper-tts-daemon.py
+Restart=always
+RestartSec=5
+MemoryMax=1500M
+Nice=5
+
+[Install]
+WantedBy=default.target
