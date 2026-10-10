@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-10-10
+
+- Repository renamed to `hermes-gadget-minitoo` (GitHub redirects the old name). Docs and research links updated. The Python package name, the local checkout path and the state directory (`~/.local/state/hermes-minitoo-gadget`, holds the pairing) keep their names.
+
 ## 0.2.0 — 2026-10-10
 
 - **Own client, not an add-on.** `hermes-gadget-minitoo` is built like `hermes-gadget linux`: its own `client`, `control`, `audio`, `cli`; only the SDK's device core, WebSocket transport and pairing are imported. No monkey-patching of `hermes_gadget.linux` (the old `runtime.py` and the `ACTIVE` display registry are gone).

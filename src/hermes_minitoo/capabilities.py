@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-RESEARCH_URL = "https://github.com/alexandershalin/hermes-minitoo-gadget/blob/development/"
+RESEARCH_URL = "https://github.com/alexandershalin/hermes-gadget-minitoo/blob/development/"
 
 
 @dataclass(frozen=True)

@@ -65,8 +65,8 @@ Install it **on the computer that runs Hermes** (iteration 1: Linux with BlueZ a
 sudo apt update
 sudo apt install git python3-venv cmake build-essential libportaudio2 liblzo2-2 bluez pipewire wireplumber pipewire-bin ffmpeg
 
-git clone https://github.com/alexandershalin/hermes-minitoo-gadget.git
-cd hermes-minitoo-gadget
+git clone https://github.com/alexandershalin/hermes-gadget-minitoo.git
+cd hermes-gadget-minitoo
 ./install.sh --address AA:BB:CC:DD:EE:FF      # the speaker's Bluetooth address
 ```
 
@@ -134,7 +134,7 @@ The 2.5-second interval is intentionally conservative for the first hardware val
 
 ## Research archive
 
-Protocol notes, hardware logs and firmware research live on the [`development`](https://github.com/alexandershalin/hermes-minitoo-gadget/tree/development) branch (and the `research-archive-2026-10` tag). `main` carries only working code.
+Protocol notes, hardware logs and firmware research live on the [`development`](https://github.com/alexandershalin/hermes-gadget-minitoo/tree/development) branch (and the `research-archive-2026-10` tag). `main` carries only working code.
 
 Machine-readable status:
 
