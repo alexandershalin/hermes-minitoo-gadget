@@ -97,7 +97,7 @@ class RFCOMMTransport:
 
         self.sock: socket.socket | None = None
         self.parser = FrameParser()
-        self.last_failure = 0.0
+        self.last_failure = float("-inf")  # not 0.0: monotonic() is small right after boot
         self._aborted = False
         self._abort_lock = threading.Lock()
 

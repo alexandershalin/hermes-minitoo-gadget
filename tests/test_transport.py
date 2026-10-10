@@ -62,6 +62,16 @@ def test_open_rfcomm_ctypes_fallback_reports_errno(monkeypatch):
         _open_rfcomm("AA:BB:CC:DD:EE:FF", 1, 5.0)
 
 
+def test_first_connect_is_not_blocked_by_low_monotonic_clock(monkeypatch):
+    # A freshly booted host has time.monotonic() < reconnect_delay; the first attempt must still go through.
+    monkeypatch.setattr(transport.time, "monotonic", lambda: 5.0)
+    opened = []
+    monkeypatch.setattr(transport, "_open_rfcomm", lambda *a, **k: opened.append(1) or object())
+    t = RFCOMMTransport("AA:BB:CC:DD:EE:FF", reconnect_delay_ms=60000)
+    t.connect()
+    assert opened == [1]
+
+
 def test_connect_failure_sets_backoff(monkeypatch):
     def boom(*a, **k):
         raise ConnectionRefusedError
